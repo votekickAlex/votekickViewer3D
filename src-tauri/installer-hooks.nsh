@@ -1,15 +1,11 @@
 ;; Custom NSIS installer/uninstaller hooks.
 ;; Docs: https://tauri.app/distribute/windows-installer/#customizing-the-installer
 
-;; Runs at the very end of uninstallation. The template has already shown its
-;; "delete application data" checkbox and stored the result in
-;; $DeleteAppDataCheckboxState. Config (cfg/) and cache always live in
-;; %APPDATA%\votekickViewer3D; the log usually lives next to the exe (removed
-;; together with the install dir) and falls back to %APPDATA%\votekickViewer3D
-;; on write failure. This hook removes that AppData folder when opted in.
+;; Runs at the very end of uninstallation. Our data (cfg + cache + fallback
+;; log) always lives in %APPDATA%\votekickViewer3D and is ALWAYS removed on
+;; uninstall. The template's built-in "delete app data" checkbox is ignored:
+;; its own logic only touches identifier-based folders that we never use.
 !macro NSIS_HOOK_POSTUNINSTALL
-  ${If} $DeleteAppDataCheckboxState = 1
-    SetShellVarContext current
-    RmDir /r "$APPDATA\votekickViewer3D"
-  ${EndIf}
+  SetShellVarContext current
+  RmDir /r "$APPDATA\votekickViewer3D"
 !macroend
