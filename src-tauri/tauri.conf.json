@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "votekickViewer3D",
+  "productName": "!votekickViewer3D",
   "mainBinaryName": "votekickViewer3D",
   "version": "0.0.1",
   "identifier": "com.votekick.viewer3d",
@@ -53,6 +53,8 @@
     "windows": {
       "nsis": {
         "installMode": "perMachine",
+        "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico",
         "installerHooks": "./installer-hooks.nsh"
       }
     }

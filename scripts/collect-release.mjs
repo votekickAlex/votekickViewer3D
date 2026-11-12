@@ -18,8 +18,8 @@ const version = JSON.parse(
   execSync("npm pkg get version", { cwd: root, encoding: "utf8" }),
 ).trim().replaceAll('"', "");
 
-// File names deliberately avoid special characters; the "!" lives only in
-// the window title.
+// Build artifact file names deliberately avoid special characters; the "!"
+// lives in the display name (window title, shortcuts, install folder).
 const name = "votekickViewer3D";
 
 // --- installer ---
@@ -42,9 +42,19 @@ if (!exe) {
 
 mkdirSync(path.join(out, "portable"), { recursive: true });
 
+// Stale artifacts from earlier builds may linger in the bundle dir; if two
+// files normalize to the same name the release/ copy would be ambiguous.
+const normalized = new Set();
 for (const file of installers) {
-  // Normalize stale names too: strip any "!" from the copied file name.
   const destName = file.replaceAll("!", "");
+  if (normalized.has(destName)) {
+    console.error(
+      `Duplicate installer artifact after normalization: ${file} -> ${destName}.` +
+        ` Delete stale files in ${nsisDir} and rebuild.`,
+    );
+    process.exit(1);
+  }
+  normalized.add(destName);
   copyFileSync(path.join(nsisDir, file), path.join(out, destName));
   console.log("installer:", path.join("release", destName));
 }

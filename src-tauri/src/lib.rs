@@ -1,5 +1,19 @@
 use tauri::{Emitter, Manager};
 
+/// App data folder name under %APPDATA% (deliberately without "!" — file
+/// system naming convention), unlike the product display name.
+const DATA_DIR_NAME: &str = "votekickViewer3D";
+
+/// Ensures the data layout exists on first launch:
+/// %APPDATA%\votekickViewer3D\cfg and ...\cache.
+fn ensure_data_dirs(app: &tauri::App) {
+    if let Ok(roaming) = app.path().data_dir() {
+        let base = roaming.join(DATA_DIR_NAME);
+        let _ = std::fs::create_dir_all(base.join("cfg"));
+        let _ = std::fs::create_dir_all(base.join("cache"));
+    }
+}
+
 /// Supported model file extensions, lowercase with the leading dot.
 const MODEL_EXTENSIONS: [&str; 8] =
     [".glb", ".gltf", ".fbx", ".obj", ".stl", ".ply", ".dae", ".3ds"];
@@ -41,6 +55,10 @@ pub fn run() {
             }
         }))
         .invoke_handler(tauri::generate_handler![initial_file])
+        .setup(|app| {
+            ensure_data_dirs(app);
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
