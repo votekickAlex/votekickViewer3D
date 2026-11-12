@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>!votekickViewer3D</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <div id="viewport"></div>
+
+    <div id="toolbar">
+      <button id="btn-open" title="Open model (Ctrl+O)">Open…</button>
+      <span class="sep"></span>
+      <button id="btn-grid" class="toggled" title="Toggle grid and floor (G)">Grid</button>
+      <button id="btn-wireframe" title="Toggle wireframe (F)">Wireframe</button>
+      <button id="btn-reset" title="Reset camera (R)">Reset view</button>
+      <span class="sep"></span>
+      <span id="status" title="">No model loaded</span>
+    </div>
+
+    <div id="drop-hint" hidden>
+      <div class="drop-hint-box">Drop model file here</div>
+    </div>
+
+    <input type="file" id="file-input" hidden />
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

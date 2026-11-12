@@ -1,0 +1,153 @@
+:root {
+  --bg: #1c1f24;
+  --panel: #26292f;
+  --panel-hover: #32363d;
+  --text: #d8dce2;
+  --text-dim: #8b909a;
+  --accent: #4f9cf9;
+  --border: #383c44;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  user-select: none;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--text);
+}
+
+#viewport {
+  position: absolute;
+  inset: 0;
+}
+
+#viewport canvas {
+  display: block;
+}
+
+/* ---------- toolbar ---------- */
+
+#toolbar {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.35);
+  z-index: 10;
+  max-width: calc(100vw - 24px);
+}
+
+#toolbar button {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  padding: 5px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+#toolbar button:hover {
+  background: var(--panel-hover);
+}
+
+#toolbar button.toggled {
+  background: var(--accent);
+  color: #fff;
+}
+
+#toolbar .sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+}
+
+#status {
+  color: var(--text-dim);
+  padding: 0 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 320px;
+}
+
+/* ---------- drag & drop hint ---------- */
+
+#drop-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(28 31 36 / 0.7);
+  z-index: 20;
+  pointer-events: none;
+}
+
+#drop-hint[hidden] {
+  display: none;
+}
+
+.drop-hint-box {
+  padding: 24px 48px;
+  border: 2px dashed var(--accent);
+  border-radius: 12px;
+  background: var(--panel);
+  font-size: 16px;
+}
+
+/* ---------- loading overlay ---------- */
+
+#loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  background: rgb(28 31 36 / 0.85);
+  z-index: 30;
+}
+
+#loading[hidden] {
+  display: none;
+}
+
+#loading-text {
+  color: var(--text-dim);
+}
+
+#loading-bar {
+  width: 220px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--panel-hover);
+  overflow: hidden;
+}
+
+#loading-bar-fill {
+  width: 0%;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.15s ease-out;
+}
