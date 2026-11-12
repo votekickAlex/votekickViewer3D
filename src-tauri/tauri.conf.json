@@ -1,6 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "!votekickViewer3D",
+  "productName": "votekickViewer3D",
+  "mainBinaryName": "votekickViewer3D",
   "version": "0.0.1",
   "identifier": "com.votekick.viewer3d",
   "build": {
@@ -31,13 +32,28 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "fileAssociations": [
+      { "ext": ["glb"], "name": "glTF Binary Model", "mimeType": "model/gltf-binary", "role": "Viewer" },
+      { "ext": ["gltf"], "name": "glTF Model", "mimeType": "model/gltf+json", "role": "Viewer" },
+      { "ext": ["fbx"], "name": "Autodesk FBX Model", "role": "Viewer" },
+      { "ext": ["obj"], "name": "Wavefront OBJ Model", "role": "Viewer" },
+      { "ext": ["stl"], "name": "Stereolithography Model", "role": "Viewer" },
+      { "ext": ["ply"], "name": "Polygon File Format Model", "role": "Viewer" },
+      { "ext": ["dae"], "name": "COLLADA Model", "role": "Viewer" },
+      { "ext": ["3ds"], "name": "Autodesk 3ds Model", "role": "Viewer" }
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "perMachine"
+      }
+    }
   }
 }
