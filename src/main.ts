@@ -1,5 +1,8 @@
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { Viewer } from "./viewer";
-import { isSupportedFile, loadFromArrayBuffer } from "./loader";
+import { isSupportedFile, loadFromArrayBuffer, setResourceBase } from "./loader";
+
+const APP_TITLE = "!votekickViewer3D";
 
 const viewport = document.getElementById("viewport")!;
 const statusEl = document.getElementById("status")!;
@@ -71,36 +74,70 @@ window.addEventListener("drop", (e) => {
 
 let loadingSeq = 0;
 
+/** Entry point for drag&drop and the file dialog. */
 async function openFile(file: File): Promise<void> {
   if (!isSupportedFile(file.name)) {
     setStatus(`Unsupported file: ${file.name}`, true);
     return;
   }
+  // Dropped files arrive alone; any stale sidecar texture base is invalid here.
+  setResourceBase("");
+  try {
+    const buffer = await readFile(file, (p) => setLoading(true, `Loading ${file.name}…`, p));
+    await loadModel(buffer, file.name);
+  } catch (err) {
+    handleLoadError(err, file.name);
+  }
+}
 
+/** Entry point for files opened through the OS (command line / Explorer). */
+async function openPath(path: string): Promise<void> {
+  if (!isSupportedFile(path)) {
+    setStatus(`Unsupported file: ${path}`, true);
+    return;
+  }
+  const name = basename(path);
+  setLoading(true, `Loading ${name}…`, 0);
+  try {
+    const res = await fetch(convertFileSrc(path));
+    if (!res.ok) throw new Error(`Cannot read file (HTTP ${res.status})`);
+    // Sidecar textures (FBX/OBJ) resolve relative to the model's folder,
+    // so the base must be known before parsing starts.
+    setResourceBase(convertFileSrc(dirname(path)));
+    const buffer = await res.arrayBuffer();
+    await loadModel(buffer, name);
+  } catch (err) {
+    handleLoadError(err, name);
+  }
+}
+
+async function loadModel(buffer: ArrayBuffer, name: string): Promise<void> {
   const seq = ++loadingSeq;
-  setLoading(true, `Loading ${file.name}…`, 0);
+  setLoading(true, `Loading ${name}…`, 1);
 
   try {
-    const buffer = await readWithProgress(file, (p) => {
-      if (seq === loadingSeq) setLoading(true, `Loading ${file.name}…`, p);
-    });
-    const result = await loadFromArrayBuffer(buffer, file.name);
+    const result = await loadFromArrayBuffer(buffer, name);
     if (seq !== loadingSeq) return; // superseded by another open
 
     viewer.setModel(result.object);
-    setStatus(`${file.name}  ·  ${(file.size / 1024 / 1024).toFixed(1)} MB`);
+    setStatus(`${name}  ·  ${(buffer.byteLength / 1024 / 1024).toFixed(1)} MB`);
+    document.title = `${name} — ${APP_TITLE}`;
   } catch (err) {
     if (seq !== loadingSeq) return;
-    viewer.clearModel();
-    console.error(err);
-    const message = err instanceof Error ? err.message : String(err);
-    setStatus(`Failed: ${message}`, true);
+    handleLoadError(err, name);
   } finally {
     if (seq === loadingSeq) setLoading(false);
   }
 }
 
-function readWithProgress(file: File, onProgress: (p: number) => void): Promise<ArrayBuffer> {
+function handleLoadError(err: unknown, name: string): void {
+  viewer.clearModel();
+  console.error(err);
+  const message = err instanceof Error ? err.message : String(err);
+  setStatus(`Failed: ${name} — ${message}`, true);
+}
+
+function readFile(file: File, onProgress: (p: number) => void): Promise<ArrayBuffer> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onprogress = (e) => {
@@ -128,6 +165,16 @@ function setStatus(text: string, isError = false): void {
   statusEl.style.color = isError ? "#f28b82" : "";
 }
 
+function basename(path: string): string {
+  const i = Math.max(path.lastIndexOf("\\"), path.lastIndexOf("/"));
+  return i >= 0 ? path.slice(i + 1) : path;
+}
+
+function dirname(path: string): string {
+  const i = Math.max(path.lastIndexOf("\\"), path.lastIndexOf("/"));
+  return i > 0 ? path.slice(0, i) : ".";
+}
+
 // ---------- keyboard ----------
 
 window.addEventListener("keydown", (e) => {
@@ -141,3 +188,17 @@ window.addEventListener("keydown", (e) => {
     fileInput.click();
   }
 });
+
+// ---------- OS integration (only runs inside the Tauri webview) ----------
+
+if ("__TAURI_INTERNALS__" in window) {
+  const { invoke } = await import("@tauri-apps/api/core");
+  const { getCurrentWebview } = await import("@tauri-apps/api/webview");
+
+  // A path given on first launch, before the frontend was listening.
+  const initial = await invoke<string | null>("initial_file");
+  if (initial) openPath(initial);
+
+  // Files routed from a second app instance (single-instance plugin).
+  await getCurrentWebview().listen<string>("open-file", (event) => openPath(event.payload));
+}

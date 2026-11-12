@@ -88,13 +88,16 @@ export async function loadFromArrayBuffer(
   const ext = fileName.toLowerCase().match(/\.[^.]+$/)?.[0] ?? "";
   const resourcePath = resourceBase || "./";
 
-  const gltf = new GLTFLoader().setResourcePath(resourcePath);
-  const fbx = new FBXLoader().setResourcePath(resourcePath);
-  const obj = new OBJLoader().setResourcePath(resourcePath);
+  const manager = new THREE.LoadingManager();
+  manager.setURLModifier(urlModifier);
+
+  const gltf = new GLTFLoader(manager).setResourcePath(resourcePath);
+  const fbx = new FBXLoader(manager).setResourcePath(resourcePath);
+  const obj = new OBJLoader(manager).setResourcePath(resourcePath);
   const stl = new STLLoader();
   const ply = new PLYLoader();
-  const dae = new ColladaLoader().setResourcePath(resourcePath);
-  const tds = new TDSLoader().setResourcePath(resourcePath);
+  const dae = new ColladaLoader(manager).setResourcePath(resourcePath);
+  const tds = new TDSLoader(manager).setResourcePath(resourcePath);
 
   const wrap = (object: THREE.Object3D, animations: THREE.AnimationClip[] = []): LoadResult => {
     prepare(object);
@@ -109,12 +112,17 @@ export async function loadFromArrayBuffer(
       );
       return wrap(gltfScene.scene ?? gltfScene.scenes[0], gltfScene.animations ?? []);
     }
-    case ".fbx":
-      return wrap(await parseAsync(fbx, buffer, fileName), fbx.animations ?? []);
+    case ".fbx": {
+      const object = await parseAsync(fbx, buffer, fileName);
+      return wrap(object, (object as any).animations ?? []);
+    }
     case ".obj":
       return wrap(obj.parse(new TextDecoder().decode(buffer)));
-    case ".stl":
-      return wrap(new THREE.Mesh(stl.parse(buffer), defaultMeshMaterial()));
+    case ".stl": {
+      const geometry = stl.parse(buffer);
+      geometry.computeVertexNormals();
+      return wrap(new THREE.Mesh(geometry, defaultMeshMaterial()));
+    }
     case ".ply": {
       const geometry = ply.parse(buffer);
       geometry.computeVertexNormals();
@@ -127,8 +135,10 @@ export async function loadFromArrayBuffer(
       return wrap(new THREE.Mesh(geometry, material));
     }
     case ".dae": {
-      const collada = await dae.parseAsync(new TextDecoder().decode(buffer), resourcePath);
-      return wrap(collada.scene, collada.scene.animations ?? []);
+      const collada = dae.parse(new TextDecoder().decode(buffer), resourcePath);
+      const scene = collada?.scene;
+      if (!scene) throw new Error("No scene found in Collada document");
+      return wrap(scene, (scene as any).animations ?? []);
     }
     case ".3ds":
       return wrap(await parseAsync(tds, buffer, fileName));
