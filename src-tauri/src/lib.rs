@@ -1,11 +1,19 @@
 use tauri::{Emitter, Manager};
 
+/// Supported model file extensions, lowercase with the leading dot.
+const MODEL_EXTENSIONS: [&str; 8] =
+    [".glb", ".gltf", ".fbx", ".obj", ".stl", ".ply", ".dae", ".3ds"];
+
 /// Returns the first command line argument that looks like a model file path.
-/// argv[0] is the executable itself; everything starting with '-' is a flag.
+/// argv[0] is the executable itself; flags are ignored, and anything that is
+/// not a model path (e.g. stray tooling arguments) is ignored too.
 fn model_file_from_args(args: &[String]) -> Option<String> {
     args.iter()
         .skip(1)
-        .find(|a| !a.is_empty() && !a.starts_with('-'))
+        .find(|a| {
+            let lower = a.to_lowercase();
+            MODEL_EXTENSIONS.iter().any(|ext| lower.ends_with(ext))
+        })
         .cloned()
 }
 
