@@ -844,6 +844,11 @@ Section Uninstall
   ; Delete uninstaller
   Delete "$INSTDIR\uninstall.exe"
 
+  ; [votekick] Runtime artifacts written next to the exe while the app was
+  ; running (the error log). Without this the install folder itself
+  ; survives the uninstall.
+  Delete "$INSTDIR\log.txt"
+
   {{#each resources_ancestors}}
   RMDir /REBOOTOK "$INSTDIR\\{{this}}"
   {{/each}}
