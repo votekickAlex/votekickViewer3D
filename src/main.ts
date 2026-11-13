@@ -5,6 +5,7 @@ import { loadSettings, saveSettingsSoon, setSetting, settings, type AppSettings 
 import { DEFAULTS } from "./settings-schema";
 import { createMenuBar, type MenuDef } from "./menu";
 import { currentLanguage, englishTemplate, setLanguage, t } from "./i18n";
+import { version as APP_VERSION } from "../package.json";
 
 const APP_TITLE = "!votekickViewer3D";
 
@@ -16,6 +17,8 @@ const fileInput = document.getElementById("file-input") as HTMLInputElement;
 fileInput.accept = SUPPORTED_EXTENSIONS.join(",");
 const settingsDialog = document.getElementById("settings-dialog") as HTMLDialogElement;
 const pluginsDialog = document.getElementById("plugins-dialog") as HTMLDialogElement;
+const aboutDialog = document.getElementById("about-dialog") as HTMLDialogElement;
+const ALL_DIALOGS = [settingsDialog, pluginsDialog, aboutDialog];
 const loadingOverlay = document.createElement("div");
 
 loadingOverlay.id = "loading";
@@ -51,17 +54,57 @@ function openFileDialog(): void {
   fileInput.click();
 }
 
+/** A model is opening: modal dialogs must not stay above the loading. */
+function closeDialogsForModelOpen(): void {
+  for (const dialog of ALL_DIALOGS) {
+    if (dialog.open) dialog.close();
+  }
+}
+
+// ---------- full screen & interface ----------
+
+let fullscreenOn = false;
+
+async function toggleFullscreen(): Promise<void> {
+  if ("__TAURI_INTERNALS__" in window) {
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    const window = getCurrentWindow();
+    fullscreenOn = !(await window.isFullscreen());
+    await window.setFullscreen(fullscreenOn);
+  } else {
+    // Dev-server fallback in a plain browser.
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+      fullscreenOn = false;
+    } else {
+      await document.documentElement.requestFullscreen();
+      fullscreenOn = true;
+    }
+  }
+}
+
+let uiHidden = false;
+
+/** View > Interface (hotkey H): hide the whole UI, leaving only the 3D
+ * viewport, for clean screenshots. Press H again to bring it back. */
+function toggleInterface(): void {
+  uiHidden = !uiHidden;
+  document.body.classList.toggle("ui-hidden", uiHidden);
+}
+
 // ---------- hotkeys (editable in the Settings dialog) ----------
 
 type HotkeyKey = keyof AppSettings["hotkeys"];
 
-/** The four bound actions, shared by the menu, the global key listener and
+/** The bound actions, shared by the menu, the global key listener and
  * the Settings rows. */
 const HOTKEY_ACTIONS: { key: HotkeyKey; label: () => string; run: () => void }[] = [
   { key: "open", label: () => t("hotkeys.open"), run: openFileDialog },
   { key: "grid", label: () => t("hotkeys.grid"), run: toggleGrid },
   { key: "wireframe", label: () => t("hotkeys.wireframe"), run: toggleWireframe },
-  { key: "reset", label: () => t("hotkeys.resetView"), run: () => viewer.frameModel() },
+  { key: "reset", label: () => t("hotkeys.resetView"), run: () => viewer.frameModel(true) },
+  { key: "fullscreen", label: () => t("hotkeys.fullscreen"), run: () => void toggleFullscreen() },
+  { key: "interface", label: () => t("hotkeys.interface"), run: toggleInterface },
 ];
 
 /** Keys that never form a combination on their own. */
@@ -69,6 +112,11 @@ const MODIFIER_ONLY_KEYS = new Set([
   "Control", "Alt", "Shift", "Meta", "AltGraph",
   "CapsLock", "NumLock", "ScrollLock", "ContextMenu",
 ]);
+
+/** Human-readable names for bindable mouse buttons (MouseEvent.button). */
+const MOUSE_BUTTON_NAMES = [
+  "Mouse Left", "Mouse Middle", "Mouse Right", "Mouse Back", "Mouse Forward",
+];
 
 /** Canonical key label from the PHYSICAL key (e.code), not the character
  * (e.key): Russian and English layouts must produce the same combination —
@@ -90,6 +138,17 @@ function comboFromEvent(e: KeyboardEvent): string {
   if (e.shiftKey) parts.push("Shift");
   if (e.metaKey) parts.push("Meta");
   parts.push(keyLabel(e));
+  return parts.join("+");
+}
+
+/** Same normalization for mouse buttons, e.g. "Mouse Right", "Ctrl+Mouse1". */
+function comboFromMouseEvent(e: MouseEvent): string {
+  const parts: string[] = [];
+  if (e.ctrlKey) parts.push("Ctrl");
+  if (e.altKey) parts.push("Alt");
+  if (e.shiftKey) parts.push("Shift");
+  if (e.metaKey) parts.push("Meta");
+  parts.push(MOUSE_BUTTON_NAMES[e.button] ?? `Mouse ${e.button}`);
   return parts.join("+");
 }
 
@@ -116,7 +175,7 @@ function renderHotkeyRows(): void {
     btn.className = "hotkey-btn";
     btn.textContent = comboLabel(settings.hotkeys[action.key]);
     btn.title = t("hotkeys.title");
-    btn.addEventListener("click", () => {
+    const startCapture = (): void => {
       // Cancel an ongoing capture without re-rendering: re-rendering would
       // detach this very button from the DOM before it starts capturing.
       if (hotkeyCapture) {
@@ -127,6 +186,17 @@ function renderHotkeyRows(): void {
       hotkeyCapture = { key: action.key, btn };
       btn.classList.add("capturing");
       btn.textContent = t("hotkeys.pressKey");
+    };
+    // Capture starts on mousedown (a mouse press must be bindable, and the
+    // starting click itself must not be swallowed). The click event is only
+    // honored when keyboard-generated (e.detail === 0) so Enter/Space work.
+    btn.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      e.stopPropagation(); // the window-level mousedown must not capture this press
+      startCapture();
+    });
+    btn.addEventListener("click", (e) => {
+      if (e.detail === 0) startCapture();
     });
     row.append(label, btn);
     hotkeysRows.appendChild(row);
@@ -136,6 +206,19 @@ function renderHotkeyRows(): void {
 function endHotkeyCapture(): void {
   hotkeyCapture = null;
   renderHotkeyRows();
+}
+
+/** Stores `combo` for the action currently being captured, clearing any
+ * other action that held the same combination. */
+function assignHotkeyCombo(combo: string): void {
+  const capture = hotkeyCapture;
+  if (!capture) return;
+  for (const other of HOTKEY_ACTIONS) {
+    if (other.key !== capture.key && settings.hotkeys[other.key] === combo) {
+      setSetting("hotkeys", other.key, "");
+    }
+  }
+  setSetting("hotkeys", capture.key, combo);
 }
 
 function showSettings(): void {
@@ -192,7 +275,9 @@ const menus: MenuDef[] = [
     items: [
       { label: () => t("menu.grid"), hint: () => settings.hotkeys.grid, checked: () => viewer.gridVisible, action: toggleGrid },
       { label: () => t("menu.wireframe"), hint: () => settings.hotkeys.wireframe, checked: () => viewer.wireframeOn, action: toggleWireframe },
-      { label: () => t("menu.resetView"), hint: () => settings.hotkeys.reset, action: () => viewer.frameModel() },
+      { label: () => t("menu.resetView"), hint: () => settings.hotkeys.reset, action: () => viewer.frameModel(true) },
+      { label: () => t("menu.fullscreen"), hint: () => settings.hotkeys.fullscreen, checked: () => fullscreenOn, action: () => void toggleFullscreen() },
+      { label: () => t("menu.interface"), hint: () => settings.hotkeys.interface, checked: () => !uiHidden, action: toggleInterface },
     ],
   },
   {
@@ -201,6 +286,10 @@ const menus: MenuDef[] = [
       { label: () => t("menu.settings"), action: showSettings },
       { label: () => t("menu.plugins"), action: () => pluginsDialog.showModal() },
     ],
+  },
+  {
+    label: () => t("menu.about"),
+    action: showAbout,
   },
 ];
 
@@ -217,6 +306,26 @@ document.getElementById("hotkeys-reset")!.addEventListener("click", () => {
   Object.assign(settings.hotkeys, structuredClone(DEFAULTS.hotkeys));
   saveSettingsSoon();
   renderHotkeyRows();
+});
+
+// ---------- about ----------
+
+function showAbout(): void {
+  document.getElementById("about-version")!.textContent = t("about.version", { version: APP_VERSION });
+  aboutDialog.showModal();
+}
+
+document.getElementById("about-close")!.addEventListener("click", () => aboutDialog.close());
+
+document.getElementById("about-link")!.addEventListener("click", async (e) => {
+  e.preventDefault();
+  if ("__TAURI_INTERNALS__" in window) {
+    // Open in the system browser, not inside the webview.
+    const { openUrl } = await import("@tauri-apps/plugin-opener");
+    await openUrl("https://votekickpanda.com/").catch((err) => console.warn("Could not open the link", err));
+  } else {
+    window.open("https://votekickpanda.com/", "_blank");
+  }
 });
 
 fileInput.addEventListener("change", () => {
@@ -258,6 +367,7 @@ let loadingSeq = 0;
 
 /** Entry point for drag&drop and the file dialog. */
 async function openFile(file: File): Promise<void> {
+  closeDialogsForModelOpen();
   if (!isSupportedFile(file.name)) {
     setStatus(t("status.unsupported", { name: file.name }), true);
     return;
@@ -274,6 +384,7 @@ async function openFile(file: File): Promise<void> {
 
 /** Entry point for files opened through the OS (command line / Explorer). */
 async function openPath(path: string): Promise<void> {
+  closeDialogsForModelOpen();
   if (!isSupportedFile(path)) {
     setStatus(t("status.unsupported", { name: path }), true);
     return;
@@ -359,37 +470,34 @@ function dirname(path: string): string {
   return i > 0 ? path.slice(0, i) : ".";
 }
 
-// ---------- keyboard ----------
+// ---------- keyboard & mouse ----------
 
 window.addEventListener("keydown", (e) => {
   // While a hotkey button is capturing, every key (except Escape) becomes
   // the new combination, and the global shortcuts stay silent. Escape ends
-  // the capture without closing the Settings dialog.
+  // the capture without closing the Settings dialog, Backspace clears the
+  // binding.
   if (hotkeyCapture) {
     e.preventDefault();
     e.stopPropagation();
-    if (e.key !== "Escape" && !MODIFIER_ONLY_KEYS.has(e.key)) {
-      // Backspace (without modifiers) clears the binding entirely.
-      if (e.key === "Backspace" && !e.ctrlKey && !e.altKey && !e.metaKey) {
-        setSetting("hotkeys", hotkeyCapture.key, "");
-        endHotkeyCapture();
-        return;
-      }
-      const combo = comboFromEvent(e);
-      // A combination can only be bound once: clear duplicates first.
-      for (const other of HOTKEY_ACTIONS) {
-        if (other.key !== hotkeyCapture.key && settings.hotkeys[other.key] === combo) {
-          setSetting("hotkeys", other.key, "");
-        }
-      }
-      setSetting("hotkeys", hotkeyCapture.key, combo);
+    if (e.key === "Escape") {
+      endHotkeyCapture();
+      return;
     }
-    endHotkeyCapture();
+    if (e.key === "Backspace" && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      setSetting("hotkeys", hotkeyCapture.key, "");
+      endHotkeyCapture();
+      return;
+    }
+    if (e.key !== "Escape" && !MODIFIER_ONLY_KEYS.has(e.key)) {
+      assignHotkeyCombo(comboFromEvent(e));
+      endHotkeyCapture();
+    }
     return;
   }
 
   // Open dialogs swallow keys; Escape closes them natively.
-  if (settingsDialog.open || pluginsDialog.open) return;
+  if (settingsDialog.open || pluginsDialog.open || aboutDialog.open) return;
   if (e.target instanceof HTMLInputElement) return;
 
   for (const action of HOTKEY_ACTIONS) {
@@ -401,6 +509,53 @@ window.addEventListener("keydown", (e) => {
       menuBar.refreshOpenMenu();
       return;
     }
+  }
+});
+
+let mouseHotkeyConsumed = false;
+
+window.addEventListener("mousedown", (e) => {
+  // Mouse buttons are bindable too: while capturing, any press (with
+  // modifiers, e.g. Ctrl+Mouse Right) becomes the new combination.
+  if (hotkeyCapture) {
+    e.preventDefault();
+    e.stopPropagation();
+    assignHotkeyCombo(comboFromMouseEvent(e));
+    endHotkeyCapture();
+    mouseHotkeyConsumed = true;
+    return;
+  }
+
+  // Open dialogs and clicks on UI controls are UI actions, not hotkeys.
+  if (settingsDialog.open || pluginsDialog.open || aboutDialog.open) return;
+  const target = e.target as HTMLElement | null;
+  if (
+    target instanceof HTMLButtonElement ||
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLSelectElement ||
+    target instanceof HTMLAnchorElement ||
+    (target && target.closest("#menubar, .dialog-actions"))
+  ) {
+    return;
+  }
+
+  for (const action of HOTKEY_ACTIONS) {
+    const combo = settings.hotkeys[action.key];
+    if (combo && comboFromMouseEvent(e) === combo) {
+      e.preventDefault();
+      mouseHotkeyConsumed = true;
+      action.run();
+      menuBar.refreshOpenMenu();
+      return;
+    }
+  }
+});
+
+// A mouse button used as a hotkey must not also trigger the context menu.
+window.addEventListener("contextmenu", (e) => {
+  if (hotkeyCapture || mouseHotkeyConsumed) {
+    e.preventDefault();
+    mouseHotkeyConsumed = false;
   }
 });
 

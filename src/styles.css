@@ -74,6 +74,9 @@ body {
 .menu-dropdown {
   position: absolute;
   top: 100%;
+  /* Centered under the whole pill menu, not under the individual button. */
+  left: 50%;
+  transform: translateX(-50%);
   min-width: 200px;
   padding: 4px;
   background: var(--panel);
@@ -150,6 +153,13 @@ button:focus-visible {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Interface hidden (View > Interface, hotkey H): only the 3D viewport
+   remains, for clean screenshots. */
+body.ui-hidden #menubar,
+body.ui-hidden #statusbar {
+  display: none;
 }
 
 /* ---------- drag & drop hint ---------- */
@@ -329,4 +339,20 @@ dialog h3 {
 .dialog-actions button:hover {
   background: var(--accent);
   color: #fff;
+}
+
+/* ---------- about dialog ---------- */
+
+.about-version {
+  color: var(--text-dim);
+  margin-bottom: 10px;
+}
+
+.about-link a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.about-link a:hover {
+  text-decoration: underline;
 }

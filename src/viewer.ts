@@ -70,14 +70,14 @@ export class Viewer {
     this.disposeModel();
     this.modelRoot.add(object);
     this.applyWireframe();
-    this.frameModel();
+    this.frameModel(true);
   }
 
   clearModel(): void {
     this.disposeModel();
   }
 
-  frameModel(): void {
+  frameModel(resetAngle = false): void {
     if (this.modelRoot.children.length === 0) return;
 
     const box = new THREE.Box3().setFromObject(this.modelRoot);
@@ -96,12 +96,13 @@ export class Viewer {
     const fov = Math.min(fovV, fovH);
     const distance = (sphere.radius / Math.sin(fov / 2)) * 1.15;
 
-    // Keep camera direction, just move to the right distance.
-    const dir = this.camera.position.clone().sub(this.controls.target).normalize();
-    if (dir.lengthSq() < 1e-6) dir.set(0.7, 0.4, 1).normalize();
+    // Reset view returns to the canonical angle; otherwise keep the
+    // current camera direction and just move to the fitting distance.
+    const dir = this.camera.position.clone().sub(this.controls.target);
+    if (resetAngle || dir.lengthSq() < 1e-6) dir.set(3, 2, 4);
 
     this.controls.target.copy(center);
-    this.camera.position.copy(center).addScaledVector(dir, distance);
+    this.camera.position.copy(center).addScaledVector(dir.normalize(), distance);
 
     // Dynamic near/far so huge and tiny models both render correctly.
     this.camera.near = Math.max(maxDim / 1000, 0.001);

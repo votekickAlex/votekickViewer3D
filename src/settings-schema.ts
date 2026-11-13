@@ -18,5 +18,7 @@ export const DEFAULTS = {
     grid: "G",
     wireframe: "W",
     reset: "R",
+    fullscreen: "F",
+    interface: "H",
   },
 };

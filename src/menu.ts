@@ -18,7 +18,10 @@ export interface MenuItemDef {
 
 export interface MenuDef {
   label: string | (() => string);
-  items: MenuItemDef[];
+  items?: MenuItemDef[];
+  /** When set, the top-level button runs this action directly and has no
+   * dropdown (e.g. About). */
+  action?: () => void;
 }
 
 export function createMenuBar(
@@ -63,7 +66,7 @@ export function createMenuBar(
   const buildDropdown = (def: MenuDef): HTMLElement => {
     const dropdown = document.createElement("div");
     dropdown.className = "menu-dropdown";
-    for (const item of def.items) {
+    for (const item of def.items ?? []) {
       const row = document.createElement("button");
       row.type = "button";
       row.className = "menu-item";
@@ -121,7 +124,7 @@ export function createMenuBar(
           if (index >= 0) {
             e.preventDefault();
             closeAll();
-            def.items[index].action?.();
+            def.items?.[index]?.action?.();
           }
           break;
         case "Escape": {
@@ -159,24 +162,42 @@ export function createMenuBar(
       button.className = "menu-top";
       button.textContent = text(def.label);
       button.dataset.index = String(index);
-      button.addEventListener("click", () => {
-        if (openButton === button) closeAll();
-        else openMenu(button, def);
-      });
-      // Standard menu behavior: moving the pointer to another menu while
-      // one is open switches to it without clicking.
-      button.addEventListener("mouseenter", () => {
-        if (openButton && openButton !== button) openMenu(button, def);
-      });
-      // Keyboard: Enter/Space/ArrowDown opens the dropdown and moves focus
-      // into its first item (plain Tab between top buttons stays native).
-      button.addEventListener("keydown", (e) => {
-        if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          openMenu(button, def);
-          focusFirstItem();
-        }
-      });
+
+      if (def.action) {
+        // Direct action button (e.g. About): no dropdown; click or
+        // Enter/Space runs it immediately.
+        const run = (): void => {
+          closeAll();
+          def.action?.();
+        };
+        button.addEventListener("click", run);
+        button.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            run();
+          }
+        });
+      } else {
+        button.addEventListener("click", () => {
+          if (openButton === button) closeAll();
+          else openMenu(button, def);
+        });
+        // Standard menu behavior: moving the pointer to another menu while
+        // one is open switches to it without clicking.
+        button.addEventListener("mouseenter", () => {
+          if (openButton && openButton !== button) openMenu(button, def);
+        });
+        // Keyboard: Enter/Space/ArrowDown opens the dropdown and moves focus
+        // into its first item (plain Tab between top buttons stays native).
+        button.addEventListener("keydown", (e) => {
+          if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            openMenu(button, def);
+            focusFirstItem();
+          }
+        });
+      }
+
       container.appendChild(button);
     });
   };

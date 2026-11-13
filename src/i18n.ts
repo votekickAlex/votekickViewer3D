@@ -19,6 +19,11 @@ export const ENGLISH: Record<string, string> = {
   "menu.resetView": "Reset view",
   "menu.settings": "Settings…",
   "menu.plugins": "Plugins…",
+  "menu.fullscreen": "Full screen",
+  "menu.interface": "Interface",
+  "menu.about": "About",
+
+  "about.version": "Version {version}",
 
   "status.noModel": "No model loaded",
   "status.loading": "Loading…",
@@ -38,6 +43,8 @@ export const ENGLISH: Record<string, string> = {
   "hotkeys.grid": "Grid",
   "hotkeys.wireframe": "Wireframe",
   "hotkeys.resetView": "Reset view",
+  "hotkeys.fullscreen": "Full screen",
+  "hotkeys.interface": "Interface",
   "hotkeys.pressKey": "Press a key…",
   "hotkeys.title": "Click, then press the new key combination (Esc cancels)",
   "hotkeys.reset": "Reset hotkeys",
