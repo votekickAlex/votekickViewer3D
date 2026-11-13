@@ -14,6 +14,56 @@ fn ensure_data_dirs(app: &tauri::App) {
     }
 }
 
+/// Path of the settings file:
+/// %APPDATA%\votekickViewer3D\cfg\settings.json
+fn settings_path(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
+    app.path()
+        .data_dir()
+        .ok()
+        .map(|roaming| roaming.join(DATA_DIR_NAME).join("cfg").join("settings.json"))
+}
+
+/// The whole settings file as a JSON string; `None` when it does not exist
+/// yet (first launch) — the frontend then uses its built-in defaults.
+#[tauri::command]
+fn load_settings(app: tauri::AppHandle) -> Option<String> {
+    std::fs::read_to_string(settings_path(&app)?).ok()
+}
+
+/// Stores the settings file sent by the frontend. The frontend owns the
+/// schema; the backend only guarantees the location and safe writes
+/// (temp file + rename, so a crash mid-write cannot truncate the file).
+#[tauri::command]
+fn save_settings(app: tauri::AppHandle, json: String) {
+    let Some(path) = settings_path(&app) else { return };
+    if let Some(dir) = path.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    let tmp = path.with_extension("json.tmp");
+    if std::fs::write(&tmp, json).is_ok() {
+        let _ = std::fs::rename(&tmp, &path);
+    }
+}
+
+/// Restores the saved window size on startup, before the first frame the
+/// user sees, so the window opens at the remembered size instead of
+/// resizing visibly afterwards.
+fn apply_saved_window_size(app: &tauri::App) {
+    let Some(path) = settings_path(app.handle()) else { return };
+    let Ok(text) = std::fs::read_to_string(path) else { return };
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) else { return };
+    let width = value["window"]["width"].as_f64();
+    let height = value["window"]["height"].as_f64();
+    let (Some(width), Some(height)) = (width, height) else { return };
+    // Ignore implausible values (corrupted file, tiny window unusable).
+    if width < 320.0 || height < 240.0 || width > 16_384.0 || height > 16_384.0 {
+        return;
+    }
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.set_size(tauri::LogicalSize::new(width, height));
+    }
+}
+
 /// Supported model file extensions, lowercase with the leading dot.
 const MODEL_EXTENSIONS: [&str; 8] =
     [".glb", ".gltf", ".fbx", ".obj", ".stl", ".ply", ".dae", ".3ds"];
@@ -54,9 +104,10 @@ pub fn run() {
                 }
             }
         }))
-        .invoke_handler(tauri::generate_handler![initial_file])
+        .invoke_handler(tauri::generate_handler![initial_file, load_settings, save_settings])
         .setup(|app| {
             ensure_data_dirs(app);
+            apply_saved_window_size(app);
             Ok(())
         })
         .run(tauri::generate_context!())

@@ -1,6 +1,7 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { Viewer } from "./viewer";
 import { isSupportedFile, loadFromArrayBuffer, setResourceBase } from "./loader";
+import { loadSettings, setSetting, settings } from "./settings";
 
 const APP_TITLE = "!votekickViewer3D";
 
@@ -19,6 +20,12 @@ document.body.appendChild(loadingOverlay);
 
 const viewer = new Viewer(viewport);
 
+// Saved settings (grid, wireframe) must be applied to the viewer before the
+// toolbar binds, so the toggle buttons reflect the loaded state.
+await loadSettings();
+viewer.setGridVisible(settings.view.grid);
+viewer.setWireframe(settings.view.wireframe);
+
 // ---------- toolbar ----------
 
 function bindToggle(id: string, get: () => boolean, set: (v: boolean) => void): void {
@@ -31,8 +38,14 @@ function bindToggle(id: string, get: () => boolean, set: (v: boolean) => void): 
   refresh();
 }
 
-bindToggle("btn-grid", () => viewer.gridVisible, (v) => viewer.setGridVisible(v));
-bindToggle("btn-wireframe", () => viewer.wireframeOn, (v) => viewer.setWireframe(v));
+bindToggle("btn-grid", () => viewer.gridVisible, (v) => {
+  viewer.setGridVisible(v);
+  setSetting("view", "grid", v);
+});
+bindToggle("btn-wireframe", () => viewer.wireframeOn, (v) => {
+  viewer.setWireframe(v);
+  setSetting("view", "wireframe", v);
+});
 
 document.getElementById("btn-reset")!.addEventListener("click", () => viewer.frameModel());
 document.getElementById("btn-open")!.addEventListener("click", () => fileInput.click());
@@ -194,6 +207,7 @@ window.addEventListener("keydown", (e) => {
 if ("__TAURI_INTERNALS__" in window) {
   const { invoke } = await import("@tauri-apps/api/core");
   const { getCurrentWebview } = await import("@tauri-apps/api/webview");
+  const { getCurrentWindow } = await import("@tauri-apps/api/window");
 
   // A path given on first launch, before the frontend was listening.
   const initial = await invoke<string | null>("initial_file");
@@ -201,4 +215,11 @@ if ("__TAURI_INTERNALS__" in window) {
 
   // Files routed from a second app instance (single-instance plugin).
   await getCurrentWebview().listen<string>("open-file", (event) => openPath(event.payload));
+
+  // Remember window size (logical px, matching the backend's LogicalSize
+  // restore). Rapid resize events coalesce through saveSettingsSoon.
+  await getCurrentWindow().onResized(() => {
+    setSetting("window", "width", window.innerWidth);
+    setSetting("window", "height", window.innerHeight);
+  });
 }

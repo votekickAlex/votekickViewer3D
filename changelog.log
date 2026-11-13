@@ -13,6 +13,8 @@ First public release.
   the same window (single instance).
 - Simple controls like a photo viewer: LMB orbit, RMB/MMB pan, wheel zoom,
   auto-framing on open; grid, wireframe, reset view (G / F / R / Ctrl+O).
+  Settings (grid, wireframe, window size) persist in
+  %APPDATA%\votekickViewer3D\cfg\settings.json.
 - FBX/OBJ sidecar textures are picked up from the model's folder.
 - NSIS installer (~1.7 MB) registers all 8 extensions and installs to the
   standard C:\Program Files\votekickViewer3D. Shortcuts (desktop, Start Menu),
@@ -25,6 +27,16 @@ First public release.
 
 0.0.1-dev — 2026-11-12 — detailed development history
 -----------------------------------------------------
+- Settings persistence (Milestone 3 start): settings.json lives in
+  AppData\Roaming\votekickViewer3D\cfg, written safely by the backend
+  (temp file + rename); frontend owns the schema in src/settings-schema.ts
+  with named keys (view.grid, view.wireframe, window.width/height) and a
+  deep-merge loader that ignores unknown keys - groundwork for the planned
+  collapsible menu subitems and hotkeys
+- Toolbar toggles (grid, wireframe) persist immediately (debounced 400 ms);
+  the window size is saved on resize and restored by the backend on
+  startup (LogicalSize, applied before first frame; implausible values
+  ignored)
 - Publisher fixed: bundle > publisher "!votekickAlex" (was auto-derived from
   the identifier as "votekick"); shown as the author in Programs & Features;
   the stale HKLM Software\votekick key from earlier builds is removed on
