@@ -154,6 +154,10 @@ vite.config.ts.timestamp-*
 logs
 *.log
 !changelog.log
+
+# Test model files (heavy binaries; keep the folder's README tracked)
+test-assets/*
+!test-assets/README.md
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
