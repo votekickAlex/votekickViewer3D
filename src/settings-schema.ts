@@ -10,6 +10,9 @@ export const DEFAULTS = {
   window: {
     launchMaximized: false,
   },
+  general: {
+    language: "english",
+  },
   hotkeys: {
     open: "O",
     grid: "G",

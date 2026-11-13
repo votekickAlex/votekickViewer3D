@@ -5,12 +5,13 @@ use tauri::{Emitter, Manager};
 const DATA_DIR_NAME: &str = "votekickViewer3D";
 
 /// Ensures the data layout exists on first launch:
-/// %APPDATA%\votekickViewer3D\cfg and ...\cache.
+/// %APPDATA%\votekickViewer3D\cfg, ...\cache and ...\lang.
 fn ensure_data_dirs(app: &tauri::App) {
     if let Ok(roaming) = app.path().data_dir() {
         let base = roaming.join(DATA_DIR_NAME);
         let _ = std::fs::create_dir_all(base.join("cfg"));
         let _ = std::fs::create_dir_all(base.join("cache"));
+        let _ = std::fs::create_dir_all(base.join("lang"));
     }
 }
 
@@ -43,6 +44,65 @@ fn save_settings(app: tauri::AppHandle, json: String) {
     if std::fs::write(&tmp, json).is_ok() {
         let _ = std::fs::rename(&tmp, &path);
     }
+}
+
+/// Folder with the user-provided language files:
+/// %APPDATA%\votekickViewer3D\lang
+fn lang_dir(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
+    app.path()
+        .data_dir()
+        .ok()
+        .map(|roaming| roaming.join(DATA_DIR_NAME).join("lang"))
+}
+
+/// Names (file stems) of the user-provided language files in the lang
+/// folder; the built-in "english" is not listed — the frontend adds it.
+#[tauri::command]
+fn list_languages(app: tauri::AppHandle) -> Vec<String> {
+    let mut names = Vec::new();
+    if let Some(dir) = lang_dir(&app) {
+        if let Ok(entries) = std::fs::read_dir(&dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let is_json = path
+                    .extension()
+                    .and_then(|ext| ext.to_str())
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("json"));
+                if is_json {
+                    if let Some(stem) = path.file_stem().and_then(|stem| stem.to_str()) {
+                        names.push(stem.to_string());
+                    }
+                }
+            }
+        }
+    }
+    names.sort();
+    names
+}
+
+/// Contents of one user language file; `None` for the built-in "english"
+/// (the frontend keeps its built-in dictionary) or a bad name.
+#[tauri::command]
+fn load_language(app: tauri::AppHandle, name: String) -> Option<String> {
+    if name == "english" || name.contains(['\\', '/', ':', '.']) {
+        return None;
+    }
+    let dir = lang_dir(&app)?;
+    std::fs::read_to_string(dir.join(format!("{name}.json"))).ok()
+}
+
+/// Writes the built-in English dictionary (sent by the frontend) as the
+/// template %APPDATA%\votekickViewer3D\lang\english.json, so users can copy
+/// it, translate it and rename the copy. An existing file is not touched.
+#[tauri::command]
+fn save_language_template(app: tauri::AppHandle, json: String) -> Result<(), String> {
+    let dir = lang_dir(&app).ok_or_else(|| "no data directory".to_string())?;
+    std::fs::create_dir_all(&dir).map_err(|err| err.to_string())?;
+    let path = dir.join("english.json");
+    if !path.exists() {
+        std::fs::write(&path, json).map_err(|err| err.to_string())?;
+    }
+    Ok(())
 }
 
 /// Applies the saved window state on startup, while the window is still
@@ -149,7 +209,10 @@ pub fn run() {
             initial_file,
             load_settings,
             save_settings,
-            log_error
+            log_error,
+            list_languages,
+            load_language,
+            save_language_template
         ])
         .setup(|app| {
             ensure_data_dirs(app);

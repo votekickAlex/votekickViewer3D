@@ -4,6 +4,7 @@ import { isSupportedFile, loadFromArrayBuffer, setResourceBase } from "./loader"
 import { loadSettings, saveSettingsSoon, setSetting, settings, type AppSettings } from "./settings";
 import { DEFAULTS } from "./settings-schema";
 import { createMenuBar, type MenuDef } from "./menu";
+import { currentLanguage, englishTemplate, setLanguage, t } from "./i18n";
 
 const APP_TITLE = "!votekickViewer3D";
 
@@ -25,10 +26,12 @@ document.body.appendChild(loadingOverlay);
 const viewer = new Viewer(viewport);
 
 // Saved settings (grid, wireframe) must be applied to the viewer before the
-// menu binds, so checkmarks reflect the loaded state.
+// menu binds, so checkmarks reflect the loaded state. The saved language is
+// applied before any t() call (menus, dialogs) is made.
 await loadSettings();
 viewer.setGridVisible(settings.view.grid);
 viewer.setWireframe(settings.view.wireframe);
+await setLanguage(settings.general.language);
 
 // ---------- shared actions (menu + hotkeys) ----------
 
@@ -52,11 +55,11 @@ type HotkeyKey = keyof AppSettings["hotkeys"];
 
 /** The four bound actions, shared by the menu, the global key listener and
  * the Settings rows. */
-const HOTKEY_ACTIONS: { key: HotkeyKey; label: string; run: () => void }[] = [
-  { key: "open", label: "Open file", run: openFileDialog },
-  { key: "grid", label: "Grid", run: toggleGrid },
-  { key: "wireframe", label: "Wireframe", run: toggleWireframe },
-  { key: "reset", label: "Reset view", run: () => viewer.frameModel() },
+const HOTKEY_ACTIONS: { key: HotkeyKey; label: () => string; run: () => void }[] = [
+  { key: "open", label: () => t("hotkeys.open"), run: openFileDialog },
+  { key: "grid", label: () => t("hotkeys.grid"), run: toggleGrid },
+  { key: "wireframe", label: () => t("hotkeys.wireframe"), run: toggleWireframe },
+  { key: "reset", label: () => t("hotkeys.resetView"), run: () => viewer.frameModel() },
 ];
 
 /** Keys that never form a combination on their own. */
@@ -64,6 +67,17 @@ const MODIFIER_ONLY_KEYS = new Set([
   "Control", "Alt", "Shift", "Meta", "AltGraph",
   "CapsLock", "NumLock", "ScrollLock", "ContextMenu",
 ]);
+
+/** Canonical key label from the PHYSICAL key (e.code), not the character
+ * (e.key): Russian and English layouts must produce the same combination —
+ * this app is English-only by design. */
+function keyLabel(e: KeyboardEvent): string {
+  const letter = /^Key([A-Z])$/.exec(e.code);
+  if (letter) return letter[1];
+  const digit = /^Digit([0-9])$/.exec(e.code);
+  if (digit) return digit[1];
+  return e.key.length === 1 ? e.key.toUpperCase() : e.key;
+}
 
 /** Normalizes a keyboard event to the stored combo string, e.g. "Ctrl+O",
  * "G". Modifier order is fixed: Ctrl+Alt+Shift+Meta+Key. */
@@ -73,7 +87,7 @@ function comboFromEvent(e: KeyboardEvent): string {
   if (e.altKey) parts.push("Alt");
   if (e.shiftKey) parts.push("Shift");
   if (e.metaKey) parts.push("Meta");
-  parts.push(e.key.length === 1 ? e.key.toUpperCase() : e.key);
+  parts.push(keyLabel(e));
   return parts.join("+");
 }
 
@@ -94,12 +108,12 @@ function renderHotkeyRows(): void {
     row.className = "hotkey-row";
     const label = document.createElement("span");
     label.className = "hotkey-label";
-    label.textContent = action.label;
+    label.textContent = action.label();
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "hotkey-btn";
     btn.textContent = comboLabel(settings.hotkeys[action.key]);
-    btn.title = "Click, then press the new key combination (Esc cancels)";
+    btn.title = t("hotkeys.title");
     btn.addEventListener("click", () => {
       // Cancel an ongoing capture without re-rendering: re-rendering would
       // detach this very button from the DOM before it starts capturing.
@@ -110,7 +124,7 @@ function renderHotkeyRows(): void {
       }
       hotkeyCapture = { key: action.key, btn };
       btn.classList.add("capturing");
-      btn.textContent = "Press a key…";
+      btn.textContent = t("hotkeys.pressKey");
     });
     row.append(label, btn);
     hotkeysRows.appendChild(row);
@@ -126,35 +140,82 @@ function showSettings(): void {
   const launchMaximized = document.getElementById("set-launch-maximized") as HTMLInputElement;
   launchMaximized.checked = settings.window.launchMaximized;
   renderHotkeyRows();
+  void populateLanguages();
   settingsDialog.showModal();
 }
 
+// ---------- language ----------
+
+const languageSelect = document.getElementById("set-language") as HTMLSelectElement;
+
+async function populateLanguages(): Promise<void> {
+  let names: string[] = [];
+  if ("__TAURI_INTERNALS__" in window) {
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      names = await invoke<string[]>("list_languages");
+    } catch (err) {
+      console.warn("Could not list languages", err);
+    }
+  }
+  languageSelect.replaceChildren();
+  for (const name of ["english", ...names.filter((n) => n !== "english")]) {
+    const option = document.createElement("option");
+    option.value = name;
+    option.textContent = name;
+    languageSelect.appendChild(option);
+  }
+  languageSelect.value = currentLanguage();
+}
+
+languageSelect.addEventListener("change", () => {
+  setSetting("general", "language", languageSelect.value);
+  void setLanguage(languageSelect.value).then(() => {
+    menuBar.rebuild();
+    renderHotkeyRows();
+  });
+});
+
+document.getElementById("lang-export")!.addEventListener("click", async () => {
+  if (!("__TAURI_INTERNALS__" in window)) return;
+  const { invoke } = await import("@tauri-apps/api/core");
+  try {
+    // Only writes lang/english.json when it does not exist yet; the user
+    // copies it, translates and renames their copy.
+    await invoke("save_language_template", { json: englishTemplate() });
+    await populateLanguages();
+  } catch (err) {
+    console.warn("Could not export the language template", err);
+  }
+});
+
 // ---------- menu bar ----------
 
-// Hints are getters so edited hotkeys show up the next time a menu opens.
+// Labels are getters so the language switch and hotkey edits show up on
+// the next rebuild / open.
 const menus: MenuDef[] = [
   {
-    label: "File",
-    items: [{ label: "Open…", hint: () => settings.hotkeys.open, action: openFileDialog }],
+    label: () => t("menu.file"),
+    items: [{ label: () => t("menu.open"), hint: () => settings.hotkeys.open, action: openFileDialog }],
   },
   {
-    label: "View",
+    label: () => t("menu.view"),
     items: [
-      { label: "Grid", hint: () => settings.hotkeys.grid, checked: () => viewer.gridVisible, action: toggleGrid },
-      { label: "Wireframe", hint: () => settings.hotkeys.wireframe, checked: () => viewer.wireframeOn, action: toggleWireframe },
-      { label: "Reset view", hint: () => settings.hotkeys.reset, action: () => viewer.frameModel() },
+      { label: () => t("menu.grid"), hint: () => settings.hotkeys.grid, checked: () => viewer.gridVisible, action: toggleGrid },
+      { label: () => t("menu.wireframe"), hint: () => settings.hotkeys.wireframe, checked: () => viewer.wireframeOn, action: toggleWireframe },
+      { label: () => t("menu.resetView"), hint: () => settings.hotkeys.reset, action: () => viewer.frameModel() },
     ],
   },
   {
-    label: "Tools",
+    label: () => t("menu.tools"),
     items: [
-      { label: "Settings…", action: showSettings },
-      { label: "Plugins…", action: () => pluginsDialog.showModal() },
+      { label: () => t("menu.settings"), action: showSettings },
+      { label: () => t("menu.plugins"), action: () => pluginsDialog.showModal() },
     ],
   },
 ];
 
-createMenuBar(document.getElementById("menubar")!, menus);
+const menuBar = createMenuBar(document.getElementById("menubar")!, menus);
 
 document.getElementById("settings-close")!.addEventListener("click", () => settingsDialog.close());
 document.getElementById("plugins-close")!.addEventListener("click", () => pluginsDialog.close());
@@ -209,13 +270,13 @@ let loadingSeq = 0;
 /** Entry point for drag&drop and the file dialog. */
 async function openFile(file: File): Promise<void> {
   if (!isSupportedFile(file.name)) {
-    setStatus(`Unsupported file: ${file.name}`, true);
+    setStatus(t("status.unsupported", { name: file.name }), true);
     return;
   }
   // Dropped files arrive alone; any stale sidecar texture base is invalid here.
   setResourceBase("");
   try {
-    const buffer = await readFile(file, (p) => setLoading(true, `Loading ${file.name}…`, p));
+    const buffer = await readFile(file, (p) => setLoading(true, t("status.loadingModel", { name: file.name }), p));
     await loadModel(buffer, file.name);
   } catch (err) {
     handleLoadError(err, file.name);
@@ -225,11 +286,11 @@ async function openFile(file: File): Promise<void> {
 /** Entry point for files opened through the OS (command line / Explorer). */
 async function openPath(path: string): Promise<void> {
   if (!isSupportedFile(path)) {
-    setStatus(`Unsupported file: ${path}`, true);
+    setStatus(t("status.unsupported", { name: path }), true);
     return;
   }
   const name = basename(path);
-  setLoading(true, `Loading ${name}…`, 0);
+  setLoading(true, t("status.loadingModel", { name }), 0);
   try {
     const res = await fetch(convertFileSrc(path));
     if (!res.ok) throw new Error(`Cannot read file (HTTP ${res.status})`);
@@ -341,6 +402,8 @@ window.addEventListener("keydown", (e) => {
     if (combo && comboFromEvent(e) === combo) {
       e.preventDefault();
       action.run();
+      // If a dropdown is open, its checkmarks must reflect the change.
+      menuBar.refreshOpenMenu();
       return;
     }
   }

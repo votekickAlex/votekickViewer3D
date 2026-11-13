@@ -6,6 +6,7 @@
   --text-dim: #8b909a;
   --accent: #4f9cf9;
   --border: #383c44;
+  color-scheme: dark;
 }
 
 * {
@@ -65,7 +66,8 @@ body {
 }
 
 #menubar .menu-top:hover,
-#menubar .menu-top.open {
+#menubar .menu-top.open,
+#menubar .menu-top:focus-visible {
   background: var(--panel-hover);
 }
 
@@ -98,6 +100,17 @@ body {
 }
 
 .menu-item:hover {
+  background: var(--panel-hover);
+}
+
+/* Keyboard focus uses the same unobtrusive highlight as mouse hover, no
+   white focus rectangle. */
+button:focus-visible {
+  outline: none;
+}
+
+.menu-item:focus,
+.menu-item:focus-visible {
   background: var(--panel-hover);
 }
 
@@ -244,6 +257,44 @@ dialog h3 {
 
 #hotkeys-rows {
   min-width: 280px;
+}
+
+/* language selection */
+
+.lang-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.setting-select {
+  appearance: auto;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  padding: 5px 10px;
+  border-radius: 5px;
+  min-width: 180px;
+}
+
+.setting-btn {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--panel-hover);
+  color: var(--text);
+  font: inherit;
+  padding: 5px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.setting-btn:hover,
+.setting-btn:focus-visible {
+  background: var(--accent);
+  color: #fff;
+  outline: none;
 }
 
 .hotkey-row {

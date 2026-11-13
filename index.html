@@ -10,34 +10,40 @@
     <nav id="menubar"></nav>
     <div id="viewport"></div>
     <div id="statusbar">
-      <span id="status" title="">No model loaded</span>
+      <span id="status" title="" data-i18n="status.noModel">No model loaded</span>
     </div>
 
     <div id="drop-hint" hidden>
-      <div class="drop-hint-box">Drop model file here</div>
+      <div class="drop-hint-box" data-i18n="drop.hint">Drop model file here</div>
     </div>
 
     <input type="file" id="file-input" hidden />
 
     <dialog id="settings-dialog">
-      <h2>Settings</h2>
+      <h2 data-i18n="settings.title">Settings</h2>
       <label class="setting-row">
         <input type="checkbox" id="set-launch-maximized" />
-        <span>Launch maximized window</span>
+        <span data-i18n="settings.launchMaximized">Launch maximized window</span>
       </label>
-      <h3>Hotkeys</h3>
+      <h3 data-i18n="settings.language">Language</h3>
+      <div class="lang-row">
+        <select id="set-language" class="setting-select"></select>
+        <button id="lang-export" type="button" class="setting-btn" data-i18n="settings.exportTemplate">Export english.json…</button>
+      </div>
+      <p class="dialog-note" data-i18n="settings.languageHint">Custom language: export english.json, copy it, translate, rename to your language and put it back into the lang folder — it appears in this list.</p>
+      <h3 data-i18n="settings.hotkeys">Hotkeys</h3>
       <div id="hotkeys-rows"></div>
       <div class="dialog-actions">
-        <button id="hotkeys-reset">Reset hotkeys</button>
-        <button id="settings-close">Close</button>
+        <button id="hotkeys-reset" data-i18n="hotkeys.reset">Reset hotkeys</button>
+        <button id="settings-close" data-i18n="dialog.close">Close</button>
       </div>
     </dialog>
 
     <dialog id="plugins-dialog">
-      <h2>Plugins</h2>
-      <p>TODO: custom user plugins are planned for a future version.</p>
+      <h2 data-i18n="plugins.title">Plugins</h2>
+      <p data-i18n="plugins.todo">TODO: custom user plugins are planned for a future version.</p>
       <div class="dialog-actions">
-        <button id="plugins-close">OK</button>
+        <button id="plugins-close" data-i18n="dialog.ok">OK</button>
       </div>
     </dialog>
 
