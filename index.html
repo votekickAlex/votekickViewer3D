@@ -7,15 +7,9 @@
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
+    <nav id="menubar"></nav>
     <div id="viewport"></div>
-
-    <div id="toolbar">
-      <button id="btn-open" title="Open model (Ctrl+O)">Open…</button>
-      <span class="sep"></span>
-      <button id="btn-grid" class="toggled" title="Toggle grid and floor (G)">Grid</button>
-      <button id="btn-wireframe" title="Toggle wireframe (F)">Wireframe</button>
-      <button id="btn-reset" title="Reset camera (R)">Reset view</button>
-      <span class="sep"></span>
+    <div id="statusbar">
       <span id="status" title="">No model loaded</span>
     </div>
 
@@ -24,6 +18,33 @@
     </div>
 
     <input type="file" id="file-input" hidden />
+
+    <dialog id="settings-dialog">
+      <h2>Settings</h2>
+      <label class="setting-row">
+        <input type="checkbox" id="set-launch-maximized" />
+        <span>Launch maximized window</span>
+      </label>
+      <h3>Hotkeys</h3>
+      <table class="hotkeys">
+        <tr><td>Open file</td><td>Ctrl+O</td></tr>
+        <tr><td>Grid</td><td>G</td></tr>
+        <tr><td>Wireframe</td><td>F</td></tr>
+        <tr><td>Reset view</td><td>R</td></tr>
+      </table>
+      <p class="dialog-note">Editable hotkeys and more settings are planned.</p>
+      <div class="dialog-actions">
+        <button id="settings-close">Close</button>
+      </div>
+    </dialog>
+
+    <dialog id="plugins-dialog">
+      <h2>Plugins</h2>
+      <p>TODO: custom user plugins are planned for a future version.</p>
+      <div class="dialog-actions">
+        <button id="plugins-close">OK</button>
+      </div>
+    </dialog>
 
     <script type="module" src="/src/main.ts"></script>
   </body>

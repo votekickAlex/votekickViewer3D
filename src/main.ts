@@ -2,6 +2,7 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { Viewer } from "./viewer";
 import { isSupportedFile, loadFromArrayBuffer, setResourceBase } from "./loader";
 import { loadSettings, setSetting, settings } from "./settings";
+import { createMenuBar, type MenuDef } from "./menu";
 
 const APP_TITLE = "!votekickViewer3D";
 
@@ -9,6 +10,8 @@ const viewport = document.getElementById("viewport")!;
 const statusEl = document.getElementById("status")!;
 const dropHint = document.getElementById("drop-hint")!;
 const fileInput = document.getElementById("file-input") as HTMLInputElement;
+const settingsDialog = document.getElementById("settings-dialog") as HTMLDialogElement;
+const pluginsDialog = document.getElementById("plugins-dialog") as HTMLDialogElement;
 const loadingOverlay = document.createElement("div");
 
 loadingOverlay.id = "loading";
@@ -21,34 +24,65 @@ document.body.appendChild(loadingOverlay);
 const viewer = new Viewer(viewport);
 
 // Saved settings (grid, wireframe) must be applied to the viewer before the
-// toolbar binds, so the toggle buttons reflect the loaded state.
+// menu binds, so checkmarks reflect the loaded state.
 await loadSettings();
 viewer.setGridVisible(settings.view.grid);
 viewer.setWireframe(settings.view.wireframe);
 
-// ---------- toolbar ----------
+// ---------- shared actions (menu + hotkeys) ----------
 
-function bindToggle(id: string, get: () => boolean, set: (v: boolean) => void): void {
-  const btn = document.getElementById(id) as HTMLButtonElement;
-  const refresh = () => btn.classList.toggle("toggled", get());
-  btn.addEventListener("click", () => {
-    set(!get());
-    refresh();
-  });
-  refresh();
+function toggleGrid(): void {
+  viewer.setGridVisible(!viewer.gridVisible);
+  setSetting("view", "grid", viewer.gridVisible);
 }
 
-bindToggle("btn-grid", () => viewer.gridVisible, (v) => {
-  viewer.setGridVisible(v);
-  setSetting("view", "grid", v);
-});
-bindToggle("btn-wireframe", () => viewer.wireframeOn, (v) => {
-  viewer.setWireframe(v);
-  setSetting("view", "wireframe", v);
-});
+function toggleWireframe(): void {
+  viewer.setWireframe(!viewer.wireframeOn);
+  setSetting("view", "wireframe", viewer.wireframeOn);
+}
 
-document.getElementById("btn-reset")!.addEventListener("click", () => viewer.frameModel());
-document.getElementById("btn-open")!.addEventListener("click", () => fileInput.click());
+function openFileDialog(): void {
+  fileInput.click();
+}
+
+function showSettings(): void {
+  const launchMaximized = document.getElementById("set-launch-maximized") as HTMLInputElement;
+  launchMaximized.checked = settings.window.launchMaximized;
+  settingsDialog.showModal();
+}
+
+// ---------- menu bar ----------
+
+const menus: MenuDef[] = [
+  {
+    label: "File",
+    items: [{ label: "Open…", hint: "Ctrl+O", action: openFileDialog }],
+  },
+  {
+    label: "View",
+    items: [
+      { label: "Grid", hint: "G", checked: () => viewer.gridVisible, action: toggleGrid },
+      { label: "Wireframe", hint: "F", checked: () => viewer.wireframeOn, action: toggleWireframe },
+      { label: "Reset view", hint: "R", action: () => viewer.frameModel() },
+    ],
+  },
+  {
+    label: "Tools",
+    items: [
+      { label: "Settings…", action: showSettings },
+      { label: "Plugins…", action: () => pluginsDialog.showModal() },
+    ],
+  },
+];
+
+createMenuBar(document.getElementById("menubar")!, menus);
+
+document.getElementById("settings-close")!.addEventListener("click", () => settingsDialog.close());
+document.getElementById("plugins-close")!.addEventListener("click", () => pluginsDialog.close());
+
+document.getElementById("set-launch-maximized")!.addEventListener("change", (e) => {
+  setSetting("window", "launchMaximized", (e.target as HTMLInputElement).checked);
+});
 
 fileInput.addEventListener("change", () => {
   if (fileInput.files?.length) openFile(fileInput.files[0]);
@@ -147,7 +181,9 @@ function handleLoadError(err: unknown, name: string): void {
   viewer.clearModel();
   console.error(err);
   const message = err instanceof Error ? err.message : String(err);
-  setStatus(`Failed: ${name} — ${message}`, true);
+  const line = `Failed: ${name} — ${message}`;
+  setStatus(line, true);
+  void logError(line);
 }
 
 function readFile(file: File, onProgress: (p: number) => void): Promise<ArrayBuffer> {
@@ -193,14 +229,26 @@ function dirname(path: string): string {
 window.addEventListener("keydown", (e) => {
   if (e.target instanceof HTMLInputElement) return;
   const key = e.key.toLowerCase();
-  if (key === "g") (document.getElementById("btn-grid") as HTMLButtonElement).click();
-  else if (key === "f") (document.getElementById("btn-wireframe") as HTMLButtonElement).click();
+  if (key === "g") toggleGrid();
+  else if (key === "f") toggleWireframe();
   else if (key === "r") viewer.frameModel();
   else if (key === "o" && (e.ctrlKey || e.metaKey)) {
     e.preventDefault();
-    fileInput.click();
+    openFileDialog();
   }
 });
+
+// ---------- error log (log.txt next to the exe, AppData fallback) ----------
+
+async function logError(message: string): Promise<void> {
+  if (!("__TAURI_INTERNALS__" in window)) return;
+  const { invoke } = await import("@tauri-apps/api/core");
+  try {
+    await invoke("log_error", { message });
+  } catch (err) {
+    console.warn("Could not write to log", err);
+  }
+}
 
 // ---------- OS integration (only runs inside the Tauri webview) ----------
 
@@ -218,7 +266,9 @@ if ("__TAURI_INTERNALS__" in window) {
 
   // Remember window size (logical px, matching the backend's LogicalSize
   // restore). Rapid resize events coalesce through saveSettingsSoon.
-  await getCurrentWindow().onResized(() => {
+  // Maximized windows are skipped: their size is not a windowed size.
+  await getCurrentWindow().onResized(async () => {
+    if (await getCurrentWindow().isMaximized()) return;
     setSetting("window", "width", window.innerWidth);
     setSetting("window", "height", window.innerHeight);
   });

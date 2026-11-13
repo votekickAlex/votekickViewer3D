@@ -26,68 +26,112 @@ body {
   color: var(--text);
 }
 
+body {
+  display: flex;
+  flex-direction: column;
+}
+
 #viewport {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  flex: 1;
+  min-height: 0;
 }
 
 #viewport canvas {
   display: block;
 }
 
-/* ---------- toolbar ---------- */
+/* ---------- menu bar ---------- */
 
-#toolbar {
-  position: absolute;
-  top: 8px;
-  left: 50%;
-  transform: translateX(-50%);
+#menubar {
+  position: relative;
   display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 8px;
+  align-items: stretch;
+  height: 30px;
+  padding: 0 4px;
   background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgb(0 0 0 / 0.35);
-  z-index: 10;
-  max-width: calc(100vw - 24px);
+  border-bottom: 1px solid var(--border);
+  z-index: 40;
 }
 
-#toolbar button {
+#menubar .menu-top {
   appearance: none;
   border: none;
   background: transparent;
   color: var(--text);
   font: inherit;
-  padding: 5px 10px;
-  border-radius: 5px;
+  padding: 0 12px;
   cursor: pointer;
-  white-space: nowrap;
 }
 
-#toolbar button:hover {
+#menubar .menu-top:hover,
+#menubar .menu-top.open {
   background: var(--panel-hover);
 }
 
-#toolbar button.toggled {
-  background: var(--accent);
-  color: #fff;
+.menu-dropdown {
+  position: absolute;
+  top: 100%;
+  min-width: 200px;
+  padding: 4px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.45);
+  z-index: 50;
 }
 
-#toolbar .sep {
-  width: 1px;
-  height: 18px;
-  background: var(--border);
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.menu-item:hover {
+  background: var(--panel-hover);
+}
+
+.menu-check {
+  width: 14px;
+  color: var(--accent);
+  flex: none;
+}
+
+.menu-label {
+  flex: 1;
+}
+
+.menu-hint {
+  color: var(--text-dim);
+  margin-left: 24px;
+}
+
+/* ---------- status bar ---------- */
+
+#statusbar {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
 }
 
 #status {
   color: var(--text-dim);
-  padding: 0 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 320px;
 }
 
 /* ---------- drag & drop hint ---------- */
@@ -150,4 +194,75 @@ body {
   height: 100%;
   background: var(--accent);
   transition: width 0.15s ease-out;
+}
+
+/* ---------- dialogs ---------- */
+
+dialog {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px 24px;
+  min-width: 320px;
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.5);
+}
+
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.4);
+}
+
+dialog h2 {
+  font-size: 15px;
+  margin-bottom: 14px;
+}
+
+dialog h3 {
+  font-size: 12px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 18px 0 8px;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.hotkeys td {
+  padding: 2px 0;
+}
+
+.hotkeys td:first-child {
+  padding-right: 24px;
+}
+
+.dialog-note {
+  color: var(--text-dim);
+  margin-top: 12px;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.dialog-actions button {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--panel-hover);
+  color: var(--text);
+  font: inherit;
+  padding: 6px 16px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.dialog-actions button:hover {
+  background: var(--accent);
+  color: #fff;
 }

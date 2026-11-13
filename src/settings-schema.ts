@@ -10,5 +10,6 @@ export const DEFAULTS = {
   window: {
     width: 0,
     height: 0,
+    launchMaximized: false,
   },
 };

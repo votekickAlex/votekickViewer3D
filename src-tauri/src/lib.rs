@@ -45,23 +45,39 @@ fn save_settings(app: tauri::AppHandle, json: String) {
     }
 }
 
-/// Restores the saved window size on startup, before the first frame the
-/// user sees, so the window opens at the remembered size instead of
-/// resizing visibly afterwards.
-fn apply_saved_window_size(app: &tauri::App) {
-    let Some(path) = settings_path(app.handle()) else { return };
-    let Ok(text) = std::fs::read_to_string(path) else { return };
-    let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) else { return };
-    let width = value["window"]["width"].as_f64();
-    let height = value["window"]["height"].as_f64();
-    let (Some(width), Some(height)) = (width, height) else { return };
-    // Ignore implausible values (corrupted file, tiny window unusable).
-    if width < 320.0 || height < 240.0 || width > 16_384.0 || height > 16_384.0 {
-        return;
+/// Applies the saved window state on startup, while the window is still
+/// hidden (tauri.conf.json sets `visible: false`), then shows it — so the
+/// window never appears at the wrong size and never visibly resizes.
+///
+/// - `window.width` / `window.height`: saved logical size, restored when
+///   plausible; otherwise the window keeps the config default (640x480)
+/// - `window.launchMaximized`: maximize instead
+fn apply_startup_window_state(app: &tauri::App) {
+    let Some(window) = app.get_webview_window("main") else { return };
+
+    if let Some(path) = settings_path(app.handle()) {
+        if let Ok(text) = std::fs::read_to_string(path) {
+            if let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) {
+                let width = value["window"]["width"].as_f64();
+                let height = value["window"]["height"].as_f64();
+                if let (Some(width), Some(height)) = (width, height) {
+                    // Ignore implausible values (corrupted file, unusable
+                    // tiny window).
+                    if (320.0..=16_384.0).contains(&width)
+                        && (240.0..=16_384.0).contains(&height)
+                    {
+                        let _ = window.set_size(tauri::LogicalSize::new(width, height));
+                    }
+                }
+                if value["window"]["launchMaximized"].as_bool().unwrap_or(false) {
+                    let _ = window.maximize();
+                }
+            }
+        }
     }
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.set_size(tauri::LogicalSize::new(width, height));
-    }
+
+    let _ = window.show();
+    let _ = window.set_focus();
 }
 
 /// Supported model file extensions, lowercase with the leading dot.
@@ -89,6 +105,40 @@ fn initial_file() -> Option<String> {
     model_file_from_args(&args)
 }
 
+/// Appends one timestamped ERROR line to a log file. Primary location is
+/// `log.txt` next to the executable; when that is not writable (Program
+/// Files without elevation) the fallback is
+/// %APPDATA%\votekickViewer3D\log.txt. Newlines inside the message are
+/// collapsed so the file stays line-oriented.
+#[tauri::command]
+fn log_error(app: tauri::AppHandle, message: String) {
+    let line = format!(
+        "[{}] ERROR  {}",
+        chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
+        message.replace(['\r', '\n'], " "),
+    );
+
+    fn append_line(path: &std::path::Path, line: &str) -> bool {
+        use std::io::Write;
+        match std::fs::OpenOptions::new().create(true).append(true).open(path) {
+            Ok(mut file) => file.write_all(line.as_bytes()).is_ok() && file.write_all(b"\n").is_ok(),
+            Err(_) => false,
+        }
+    }
+
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(std::path::Path::to_path_buf));
+    if let Some(dir) = exe_dir {
+        if append_line(&dir.join("log.txt"), &line) {
+            return;
+        }
+    }
+    if let Ok(roaming) = app.path().data_dir() {
+        let _ = append_line(&roaming.join(DATA_DIR_NAME).join("log.txt"), &line);
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -104,10 +154,15 @@ pub fn run() {
                 }
             }
         }))
-        .invoke_handler(tauri::generate_handler![initial_file, load_settings, save_settings])
+        .invoke_handler(tauri::generate_handler![
+            initial_file,
+            load_settings,
+            save_settings,
+            log_error
+        ])
         .setup(|app| {
             ensure_data_dirs(app);
-            apply_saved_window_size(app);
+            apply_startup_window_state(app);
             Ok(())
         })
         .run(tauri::generate_context!())
