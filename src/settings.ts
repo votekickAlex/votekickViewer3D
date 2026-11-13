@@ -6,8 +6,9 @@
 // safe writes; the frontend owns the schema, defaults and merging.
 //
 // Structure:
-//   view:   { grid, wireframe }     — toolbar toggle states
-//   window: { width, height }       — restored by the backend on startup
+//   view:    { grid, wireframe }        — View menu toggle states
+//   window:  { launchMaximized }        — applied by the backend on startup
+//   hotkeys: { open, grid, wireframe, reset } — editable in Settings
 
 import { DEFAULTS } from "./settings-schema";
 

@@ -6,8 +6,9 @@
 
 export interface MenuItemDef {
   label: string;
-  /** Right-aligned shortcut hint, e.g. "Ctrl+O". */
-  hint?: string;
+  /** Right-aligned shortcut hint, e.g. "Ctrl+O" or a getter re-read on
+   * every menu open (so edited hotkeys show up immediately). */
+  hint?: string | (() => string);
   /** Show a checkmark in front of the item when it returns true. */
   checked?: () => boolean;
   action?: () => void;
@@ -48,7 +49,7 @@ export function createMenuBar(container: HTMLElement, menus: MenuDef[]): void {
       if (item.hint) {
         const hint = document.createElement("span");
         hint.className = "menu-hint";
-        hint.textContent = item.hint;
+        hint.textContent = typeof item.hint === "function" ? item.hint() : item.hint;
         row.appendChild(hint);
       }
       row.addEventListener("click", () => {

@@ -47,33 +47,24 @@ fn save_settings(app: tauri::AppHandle, json: String) {
 
 /// Applies the saved window state on startup, while the window is still
 /// hidden (tauri.conf.json sets `visible: false`), then shows it — so the
-/// window never appears at the wrong size and never visibly resizes.
+/// window never visibly resizes or jumps.
 ///
-/// - `window.width` / `window.height`: saved logical size, restored when
-///   plausible; otherwise the window keeps the config default (640x480)
-/// - `window.launchMaximized`: maximize instead
+/// - `window.launchMaximized`: start maximized
+/// - otherwise: the fixed 640x480 window from the config, centered on the
+///   screen (the size is deliberately not persisted)
 fn apply_startup_window_state(app: &tauri::App) {
     let Some(window) = app.get_webview_window("main") else { return };
 
-    if let Some(path) = settings_path(app.handle()) {
-        if let Ok(text) = std::fs::read_to_string(path) {
-            if let Ok(value) = serde_json::from_str::<serde_json::Value>(&text) {
-                let width = value["window"]["width"].as_f64();
-                let height = value["window"]["height"].as_f64();
-                if let (Some(width), Some(height)) = (width, height) {
-                    // Ignore implausible values (corrupted file, unusable
-                    // tiny window).
-                    if (320.0..=16_384.0).contains(&width)
-                        && (240.0..=16_384.0).contains(&height)
-                    {
-                        let _ = window.set_size(tauri::LogicalSize::new(width, height));
-                    }
-                }
-                if value["window"]["launchMaximized"].as_bool().unwrap_or(false) {
-                    let _ = window.maximize();
-                }
-            }
-        }
+    let launch_maximized = settings_path(app.handle())
+        .and_then(|path| std::fs::read_to_string(path).ok())
+        .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+        .and_then(|value| value["window"]["launchMaximized"].as_bool())
+        .unwrap_or(false);
+
+    if launch_maximized {
+        let _ = window.maximize();
+    } else {
+        let _ = window.center();
     }
 
     let _ = window.show();

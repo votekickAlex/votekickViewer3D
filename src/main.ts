@@ -1,7 +1,8 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { Viewer } from "./viewer";
 import { isSupportedFile, loadFromArrayBuffer, setResourceBase } from "./loader";
-import { loadSettings, setSetting, settings } from "./settings";
+import { loadSettings, saveSettingsSoon, setSetting, settings, type AppSettings } from "./settings";
+import { DEFAULTS } from "./settings-schema";
 import { createMenuBar, type MenuDef } from "./menu";
 
 const APP_TITLE = "!votekickViewer3D";
@@ -45,25 +46,103 @@ function openFileDialog(): void {
   fileInput.click();
 }
 
+// ---------- hotkeys (editable in the Settings dialog) ----------
+
+type HotkeyKey = keyof AppSettings["hotkeys"];
+
+/** The four bound actions, shared by the menu, the global key listener and
+ * the Settings rows. */
+const HOTKEY_ACTIONS: { key: HotkeyKey; label: string; run: () => void }[] = [
+  { key: "open", label: "Open file", run: openFileDialog },
+  { key: "grid", label: "Grid", run: toggleGrid },
+  { key: "wireframe", label: "Wireframe", run: toggleWireframe },
+  { key: "reset", label: "Reset view", run: () => viewer.frameModel() },
+];
+
+/** Keys that never form a combination on their own. */
+const MODIFIER_ONLY_KEYS = new Set([
+  "Control", "Alt", "Shift", "Meta", "AltGraph",
+  "CapsLock", "NumLock", "ScrollLock", "ContextMenu",
+]);
+
+/** Normalizes a keyboard event to the stored combo string, e.g. "Ctrl+O",
+ * "G". Modifier order is fixed: Ctrl+Alt+Shift+Meta+Key. */
+function comboFromEvent(e: KeyboardEvent): string {
+  const parts: string[] = [];
+  if (e.ctrlKey) parts.push("Ctrl");
+  if (e.altKey) parts.push("Alt");
+  if (e.shiftKey) parts.push("Shift");
+  if (e.metaKey) parts.push("Meta");
+  parts.push(e.key.length === 1 ? e.key.toUpperCase() : e.key);
+  return parts.join("+");
+}
+
+function comboLabel(combo: string): string {
+  return combo || "—"; // "—" = unassigned (cleared because of a duplicate)
+}
+
+const hotkeysRows = document.getElementById("hotkeys-rows")!;
+
+/** Non-null while a hotkey button waits for the user to press the new
+ * combination; Escape cancels the capture. */
+let hotkeyCapture: { key: HotkeyKey; btn: HTMLButtonElement } | null = null;
+
+function renderHotkeyRows(): void {
+  hotkeysRows.replaceChildren();
+  for (const action of HOTKEY_ACTIONS) {
+    const row = document.createElement("div");
+    row.className = "hotkey-row";
+    const label = document.createElement("span");
+    label.className = "hotkey-label";
+    label.textContent = action.label;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "hotkey-btn";
+    btn.textContent = comboLabel(settings.hotkeys[action.key]);
+    btn.title = "Click, then press the new key combination (Esc cancels)";
+    btn.addEventListener("click", () => {
+      // Cancel an ongoing capture without re-rendering: re-rendering would
+      // detach this very button from the DOM before it starts capturing.
+      if (hotkeyCapture) {
+        hotkeyCapture.btn.classList.remove("capturing");
+        hotkeyCapture.btn.textContent = comboLabel(settings.hotkeys[hotkeyCapture.key]);
+        hotkeyCapture = null;
+      }
+      hotkeyCapture = { key: action.key, btn };
+      btn.classList.add("capturing");
+      btn.textContent = "Press a key…";
+    });
+    row.append(label, btn);
+    hotkeysRows.appendChild(row);
+  }
+}
+
+function endHotkeyCapture(): void {
+  hotkeyCapture = null;
+  renderHotkeyRows();
+}
+
 function showSettings(): void {
   const launchMaximized = document.getElementById("set-launch-maximized") as HTMLInputElement;
   launchMaximized.checked = settings.window.launchMaximized;
+  renderHotkeyRows();
   settingsDialog.showModal();
 }
 
 // ---------- menu bar ----------
 
+// Hints are getters so edited hotkeys show up the next time a menu opens.
 const menus: MenuDef[] = [
   {
     label: "File",
-    items: [{ label: "Open…", hint: "Ctrl+O", action: openFileDialog }],
+    items: [{ label: "Open…", hint: () => settings.hotkeys.open, action: openFileDialog }],
   },
   {
     label: "View",
     items: [
-      { label: "Grid", hint: "G", checked: () => viewer.gridVisible, action: toggleGrid },
-      { label: "Wireframe", hint: "F", checked: () => viewer.wireframeOn, action: toggleWireframe },
-      { label: "Reset view", hint: "R", action: () => viewer.frameModel() },
+      { label: "Grid", hint: () => settings.hotkeys.grid, checked: () => viewer.gridVisible, action: toggleGrid },
+      { label: "Wireframe", hint: () => settings.hotkeys.wireframe, checked: () => viewer.wireframeOn, action: toggleWireframe },
+      { label: "Reset view", hint: () => settings.hotkeys.reset, action: () => viewer.frameModel() },
     ],
   },
   {
@@ -82,6 +161,12 @@ document.getElementById("plugins-close")!.addEventListener("click", () => plugin
 
 document.getElementById("set-launch-maximized")!.addEventListener("change", (e) => {
   setSetting("window", "launchMaximized", (e.target as HTMLInputElement).checked);
+});
+
+document.getElementById("hotkeys-reset")!.addEventListener("click", () => {
+  Object.assign(settings.hotkeys, structuredClone(DEFAULTS.hotkeys));
+  saveSettingsSoon();
+  renderHotkeyRows();
 });
 
 fileInput.addEventListener("change", () => {
@@ -227,14 +312,37 @@ function dirname(path: string): string {
 // ---------- keyboard ----------
 
 window.addEventListener("keydown", (e) => {
-  if (e.target instanceof HTMLInputElement) return;
-  const key = e.key.toLowerCase();
-  if (key === "g") toggleGrid();
-  else if (key === "f") toggleWireframe();
-  else if (key === "r") viewer.frameModel();
-  else if (key === "o" && (e.ctrlKey || e.metaKey)) {
+  // While a hotkey button is capturing, every key (except Escape) becomes
+  // the new combination, and the global shortcuts stay silent. Escape ends
+  // the capture without closing the Settings dialog.
+  if (hotkeyCapture) {
     e.preventDefault();
-    openFileDialog();
+    e.stopPropagation();
+    if (e.key !== "Escape" && !MODIFIER_ONLY_KEYS.has(e.key)) {
+      const combo = comboFromEvent(e);
+      // A combination can only be bound once: clear duplicates first.
+      for (const other of HOTKEY_ACTIONS) {
+        if (other.key !== hotkeyCapture.key && settings.hotkeys[other.key] === combo) {
+          setSetting("hotkeys", other.key, "");
+        }
+      }
+      setSetting("hotkeys", hotkeyCapture.key, combo);
+    }
+    endHotkeyCapture();
+    return;
+  }
+
+  // Open dialogs swallow keys; Escape closes them natively.
+  if (settingsDialog.open || pluginsDialog.open) return;
+  if (e.target instanceof HTMLInputElement) return;
+
+  for (const action of HOTKEY_ACTIONS) {
+    const combo = settings.hotkeys[action.key];
+    if (combo && comboFromEvent(e) === combo) {
+      e.preventDefault();
+      action.run();
+      return;
+    }
   }
 });
 
@@ -255,7 +363,6 @@ async function logError(message: string): Promise<void> {
 if ("__TAURI_INTERNALS__" in window) {
   const { invoke } = await import("@tauri-apps/api/core");
   const { getCurrentWebview } = await import("@tauri-apps/api/webview");
-  const { getCurrentWindow } = await import("@tauri-apps/api/window");
 
   // A path given on first launch, before the frontend was listening.
   const initial = await invoke<string | null>("initial_file");
@@ -263,13 +370,4 @@ if ("__TAURI_INTERNALS__" in window) {
 
   // Files routed from a second app instance (single-instance plugin).
   await getCurrentWebview().listen<string>("open-file", (event) => openPath(event.payload));
-
-  // Remember window size (logical px, matching the backend's LogicalSize
-  // restore). Rapid resize events coalesce through saveSettingsSoon.
-  // Maximized windows are skipped: their size is not a windowed size.
-  await getCurrentWindow().onResized(async () => {
-    if (await getCurrentWindow().isMaximized()) return;
-    setSetting("window", "width", window.innerWidth);
-    setSetting("window", "height", window.innerHeight);
-  });
 }

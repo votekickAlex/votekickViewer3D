@@ -26,32 +26,32 @@ body {
   color: var(--text);
 }
 
-body {
-  display: flex;
-  flex-direction: column;
-}
-
 #viewport {
-  position: relative;
-  flex: 1;
-  min-height: 0;
+  position: absolute;
+  inset: 0;
 }
 
 #viewport canvas {
   display: block;
 }
 
-/* ---------- menu bar ---------- */
+/* ---------- menu bar (floating, like the old toolbar) ---------- */
 
 #menubar {
-  position: relative;
-  display: flex;
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
   align-items: stretch;
-  height: 30px;
-  padding: 0 4px;
+  height: 34px;
+  padding: 0 6px;
   background: var(--panel);
-  border-bottom: 1px solid var(--border);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.35);
   z-index: 40;
+  max-width: calc(100vw - 24px);
 }
 
 #menubar .menu-top {
@@ -60,7 +60,7 @@ body {
   background: transparent;
   color: var(--text);
   font: inherit;
-  padding: 0 12px;
+  padding: 0 14px;
   cursor: pointer;
 }
 
@@ -119,12 +119,17 @@ body {
 /* ---------- status bar ---------- */
 
 #statusbar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
   height: 24px;
   display: flex;
   align-items: center;
   padding: 0 10px;
   background: var(--panel);
   border-top: 1px solid var(--border);
+  z-index: 40;
 }
 
 #status {
@@ -205,6 +210,9 @@ dialog {
   border-radius: 10px;
   padding: 20px 24px;
   min-width: 320px;
+  /* Undo the global `* { margin: 0 }` reset: the UA stylesheet centers
+     dialogs through auto margins. */
+  margin: auto;
   box-shadow: 0 12px 40px rgb(0 0 0 / 0.5);
 }
 
@@ -232,12 +240,42 @@ dialog h3 {
   cursor: pointer;
 }
 
-.hotkeys td {
-  padding: 2px 0;
+/* ---------- editable hotkey rows ---------- */
+
+#hotkeys-rows {
+  min-width: 280px;
 }
 
-.hotkeys td:first-child {
-  padding-right: 24px;
+.hotkey-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 3px 0;
+}
+
+.hotkey-btn {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  min-width: 110px;
+  padding: 4px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.hotkey-btn:hover {
+  border-color: var(--accent);
+}
+
+.hotkey-btn.capturing {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--panel-hover);
+  cursor: wait;
 }
 
 .dialog-note {

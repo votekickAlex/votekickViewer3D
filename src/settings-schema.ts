@@ -8,8 +8,12 @@ export const DEFAULTS = {
     wireframe: false,
   },
   window: {
-    width: 0,
-    height: 0,
     launchMaximized: false,
+  },
+  hotkeys: {
+    open: "O",
+    grid: "G",
+    wireframe: "W",
+    reset: "R",
   },
 };
