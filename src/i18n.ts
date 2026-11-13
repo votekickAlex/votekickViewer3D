@@ -31,9 +31,8 @@ export const ENGLISH: Record<string, string> = {
   "settings.launchMaximized": "Launch maximized window",
   "settings.hotkeys": "Hotkeys",
   "settings.language": "Language",
-  "settings.exportTemplate": "Export english.json…",
   "settings.languageHint":
-    "Custom language: export english.json, copy it, translate, rename to your language and put it back into the lang folder — it appears in this list.",
+    "Custom language: english.json is created in the lang folder on first launch. Copy it, translate it, rename it to your language and put it back — it appears in this list.",
 
   "hotkeys.open": "Open file",
   "hotkeys.grid": "Grid",

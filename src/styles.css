@@ -261,12 +261,6 @@ dialog h3 {
 
 /* language selection */
 
-.lang-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .setting-select {
   appearance: auto;
   border: 1px solid var(--border);
@@ -276,25 +270,6 @@ dialog h3 {
   padding: 5px 10px;
   border-radius: 5px;
   min-width: 180px;
-}
-
-.setting-btn {
-  appearance: none;
-  border: 1px solid var(--border);
-  background: var(--panel-hover);
-  color: var(--text);
-  font: inherit;
-  padding: 5px 12px;
-  border-radius: 5px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.setting-btn:hover,
-.setting-btn:focus-visible {
-  background: var(--accent);
-  color: #fff;
-  outline: none;
 }
 
 .hotkey-row {

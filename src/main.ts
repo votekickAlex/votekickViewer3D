@@ -1,6 +1,6 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { Viewer } from "./viewer";
-import { isSupportedFile, loadFromArrayBuffer, setResourceBase } from "./loader";
+import { isSupportedFile, loadFromArrayBuffer, setResourceBase, SUPPORTED_EXTENSIONS } from "./loader";
 import { loadSettings, saveSettingsSoon, setSetting, settings, type AppSettings } from "./settings";
 import { DEFAULTS } from "./settings-schema";
 import { createMenuBar, type MenuDef } from "./menu";
@@ -12,6 +12,8 @@ const viewport = document.getElementById("viewport")!;
 const statusEl = document.getElementById("status")!;
 const dropHint = document.getElementById("drop-hint")!;
 const fileInput = document.getElementById("file-input") as HTMLInputElement;
+// The OS dialog must only offer the formats the viewer can actually load.
+fileInput.accept = SUPPORTED_EXTENSIONS.join(",");
 const settingsDialog = document.getElementById("settings-dialog") as HTMLDialogElement;
 const pluginsDialog = document.getElementById("plugins-dialog") as HTMLDialogElement;
 const loadingOverlay = document.createElement("div");
@@ -174,19 +176,6 @@ languageSelect.addEventListener("change", () => {
     menuBar.rebuild();
     renderHotkeyRows();
   });
-});
-
-document.getElementById("lang-export")!.addEventListener("click", async () => {
-  if (!("__TAURI_INTERNALS__" in window)) return;
-  const { invoke } = await import("@tauri-apps/api/core");
-  try {
-    // Only writes lang/english.json when it does not exist yet; the user
-    // copies it, translates and renames their copy.
-    await invoke("save_language_template", { json: englishTemplate() });
-    await populateLanguages();
-  } catch (err) {
-    console.warn("Could not export the language template", err);
-  }
 });
 
 // ---------- menu bar ----------
@@ -380,6 +369,12 @@ window.addEventListener("keydown", (e) => {
     e.preventDefault();
     e.stopPropagation();
     if (e.key !== "Escape" && !MODIFIER_ONLY_KEYS.has(e.key)) {
+      // Backspace (without modifiers) clears the binding entirely.
+      if (e.key === "Backspace" && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        setSetting("hotkeys", hotkeyCapture.key, "");
+        endHotkeyCapture();
+        return;
+      }
       const combo = comboFromEvent(e);
       // A combination can only be bound once: clear duplicates first.
       for (const other of HOTKEY_ACTIONS) {
@@ -426,6 +421,15 @@ async function logError(message: string): Promise<void> {
 if ("__TAURI_INTERNALS__" in window) {
   const { invoke } = await import("@tauri-apps/api/core");
   const { getCurrentWebview } = await import("@tauri-apps/api/webview");
+
+  // Ensure the translation template %APPDATA%\...\lang\english.json exists
+  // (backend only writes it when missing). Translators copy, edit and
+  // rename it; the result shows up in Settings > Language.
+  try {
+    await invoke("save_language_template", { json: englishTemplate() });
+  } catch (err) {
+    console.warn("Could not create the language template", err);
+  }
 
   // A path given on first launch, before the frontend was listening.
   const initial = await invoke<string | null>("initial_file");

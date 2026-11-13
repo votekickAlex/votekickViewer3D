@@ -189,6 +189,9 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
 ; 4. Custom page to ask user if he wants to reinstall/uninstall
 ;    only if a previous installation was detected
 Var ReinstallPageCheck
+; [votekick] set to 1 when the user picked a plain "Uninstall" of the same
+; version - the installer must close instead of continuing the install
+Var ReinstallUninstallOnly
 Page custom PageReinstall PageLeaveReinstall
 Function PageReinstall
   ; Uninstall previous WiX installation if exists.
@@ -333,6 +336,8 @@ Function PageLeaveReinstall
     ${If} $R1 = 1              ; User chose to add/reinstall
       Goto reinst_done
     ${Else}                    ; User chose to uninstall
+      ; [votekick] uninstall-only: close the installer when done
+      StrCpy $ReinstallUninstallOnly 1
       Goto reinst_uninstall
     ${EndIf}
   ${ElseIf} $R0 = 1 ; Upgrading
@@ -394,6 +399,11 @@ Function PageLeaveReinstall
     ${AndIf} $4 != ""
       Delete "$4\uninstall.exe"
       RMDir "$4"
+    ${EndIf}
+    ; [votekick] user asked only to uninstall: do not continue into the
+    ; install pages, close the installer
+    ${If} $ReinstallUninstallOnly = 1
+      Quit
     ${EndIf}
   reinst_done:
 FunctionEnd

@@ -40,6 +40,7 @@ export function createMenuBar(
 
   const closeAll = (): void => {
     openButton?.classList.remove("open");
+    openDropdown?.remove();
     openButton = null;
     openDropdown = null;
     openDef = null;
