@@ -20,6 +20,7 @@ export const DEFAULTS = {
     reset: "R",
     fullscreen: "F",
     interface: "H",
+    boundingBox: "B",
     quit: "Q",
   },
 };

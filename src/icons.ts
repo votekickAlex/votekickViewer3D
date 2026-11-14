@@ -18,6 +18,10 @@ import documentCode from "./icons/line-md/document-code.svg?raw";
 import questionCircle from "./icons/line-md/question-circle.svg?raw";
 import downloadingLoop from "./icons/line-md/downloading-loop.svg?raw";
 import externalLink from "./icons/line-md/external-link.svg?raw";
+import file from "./icons/line-md/file.svg?raw";
+import image from "./icons/line-md/image.svg?raw";
+import construction from "./icons/line-md/construction.svg?raw";
+import square from "./icons/line-md/square.svg?raw";
 
 const ICONS: Record<string, string> = {
   "folder-arrow-right": folderArrowRight,
@@ -32,6 +36,10 @@ const ICONS: Record<string, string> = {
   "question-circle": questionCircle,
   "downloading-loop": downloadingLoop,
   "external-link": externalLink,
+  file,
+  image,
+  construction,
+  square,
 };
 
 /** Raw SVG markup for a named icon, or an empty string for an unknown

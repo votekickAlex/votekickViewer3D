@@ -53,11 +53,19 @@ document.querySelectorAll<HTMLElement>("[data-icon]").forEach((el) => {
 function toggleGrid(): void {
   viewer.setGridVisible(!viewer.gridVisible);
   setSetting("view", "grid", viewer.gridVisible);
+  refreshStatusIcons();
 }
 
 function toggleWireframe(): void {
   viewer.setWireframe(!viewer.wireframeOn);
   setSetting("view", "wireframe", viewer.wireframeOn);
+  refreshStatusIcons();
+}
+
+/** View > Bounding box (hotkey B): cube edges around the whole model. */
+function toggleBBox(): void {
+  viewer.setBBoxVisible(!viewer.bboxVisible);
+  refreshStatusIcons();
 }
 
 function openFileDialog(): void {
@@ -75,6 +83,23 @@ function closeDialogsForModelOpen(): void {
 
 let fullscreenOn = false;
 
+/** Icons in the status bar reflecting the enabled View states; titles are
+ * re-read so a language switch updates them too. */
+function refreshStatusIcons(): void {
+  const states: [string, () => boolean, () => string][] = [
+    ["st-grid", () => viewer.gridVisible, () => t("menu.grid")],
+    ["st-wireframe", () => viewer.wireframeOn, () => t("menu.wireframe")],
+    ["st-bbox", () => viewer.bboxVisible, () => t("menu.boundingBox")],
+    ["st-fullscreen", () => fullscreenOn, () => t("menu.fullscreen")],
+  ];
+  for (const [id, on, title] of states) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    el.classList.toggle("on", on());
+    el.title = title();
+  }
+}
+
 async function toggleFullscreen(): Promise<void> {
   if ("__TAURI_INTERNALS__" in window) {
     const { getCurrentWindow } = await import("@tauri-apps/api/window");
@@ -91,6 +116,7 @@ async function toggleFullscreen(): Promise<void> {
       fullscreenOn = true;
     }
   }
+  refreshStatusIcons();
 }
 
 async function quitApp(): Promise<void> {
@@ -121,6 +147,7 @@ const HOTKEY_ACTIONS: { key: HotkeyKey; label: () => string; run: () => void }[]
   { key: "open", label: () => t("hotkeys.open"), run: openFileDialog },
   { key: "grid", label: () => t("hotkeys.grid"), run: toggleGrid },
   { key: "wireframe", label: () => t("hotkeys.wireframe"), run: toggleWireframe },
+  { key: "boundingBox", label: () => t("hotkeys.boundingBox"), run: toggleBBox },
   { key: "reset", label: () => t("hotkeys.resetView"), run: () => viewer.frameModel(true) },
   { key: "fullscreen", label: () => t("hotkeys.fullscreen"), run: () => void toggleFullscreen() },
   { key: "interface", label: () => t("hotkeys.interface"), run: toggleInterface },
@@ -301,6 +328,7 @@ languageSelect.addEventListener("change", () => {
   void setLanguage(languageSelect.value).then(() => {
     menuBar.rebuild();
     renderHotkeyRows();
+    refreshStatusIcons();
   });
 });
 
@@ -311,6 +339,7 @@ languageSelect.addEventListener("change", () => {
 const menus: MenuDef[] = [
   {
     label: () => t("menu.file"),
+    icon: "file",
     items: [
       { label: () => t("menu.open"), hint: () => settings.hotkeys.open, icon: "folder-arrow-right", action: openFileDialog },
       { label: () => t("menu.quit"), hint: () => settings.hotkeys.quit, icon: "logout", action: () => void quitApp() },
@@ -318,16 +347,19 @@ const menus: MenuDef[] = [
   },
   {
     label: () => t("menu.view"),
+    icon: "image",
     items: [
       { label: () => t("menu.resetView"), hint: () => settings.hotkeys.reset, icon: "compass", action: () => viewer.frameModel(true) },
       { label: () => t("menu.grid"), hint: () => settings.hotkeys.grid, checked: () => viewer.gridVisible, icon: "grid-3", action: toggleGrid },
       { label: () => t("menu.wireframe"), hint: () => settings.hotkeys.wireframe, checked: () => viewer.wireframeOn, icon: "hash", action: toggleWireframe },
+      { label: () => t("menu.boundingBox"), hint: () => settings.hotkeys.boundingBox, checked: () => viewer.bboxVisible, icon: "square", action: toggleBBox },
       { label: () => t("menu.fullscreen"), hint: () => settings.hotkeys.fullscreen, checked: () => fullscreenOn, icon: "arrows-diagonal", action: () => void toggleFullscreen() },
       { label: () => t("menu.interface"), hint: () => settings.hotkeys.interface, checked: () => !uiHidden, icon: "monitor-screenshot", action: toggleInterface },
     ],
   },
   {
     label: () => t("menu.tools"),
+    icon: "construction",
     items: [
       { label: () => t("menu.settings"), icon: "cog-loop", action: showSettings },
       { label: () => t("menu.plugins"), icon: "document-code", action: () => pluginsDialog.showModal() },
@@ -341,6 +373,10 @@ const menus: MenuDef[] = [
 ];
 
 const menuBar = createMenuBar(document.getElementById("menubar")!, menus);
+
+// Initial status bar: View state icons and the app version.
+refreshStatusIcons();
+document.getElementById("status-version")!.textContent = `v${APP_VERSION}`;
 
 document.getElementById("settings-close")!.addEventListener("click", () => settingsDialog.close());
 document.getElementById("plugins-close")!.addEventListener("click", () => pluginsDialog.close());

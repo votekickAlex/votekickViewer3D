@@ -5,6 +5,7 @@ import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment
 const BG_COLOR = 0x1c1f24;
 const GRID_COLOR = 0x3a3f47;
 const GRID_CENTER_COLOR = 0x565d68;
+const BBOX_COLOR = 0x4f9cf9;
 
 export class Viewer {
   readonly renderer: THREE.WebGLRenderer;
@@ -15,6 +16,8 @@ export class Viewer {
   private grid: THREE.Group;
   private modelRoot: THREE.Group;
   private wireframe = false;
+  private bbox: THREE.Box3;
+  private bboxHelper: THREE.Box3Helper;
 
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -48,6 +51,13 @@ export class Viewer {
     this.modelRoot = new THREE.Group();
     this.scene.add(this.modelRoot);
 
+    // The bounding box helper reads this Box3 on every frame, so the box
+    // edges follow the model automatically once the Box3 is recomputed.
+    this.bbox = new THREE.Box3();
+    this.bboxHelper = new THREE.Box3Helper(this.bbox, BBOX_COLOR);
+    this.bboxHelper.visible = false;
+    this.scene.add(this.bboxHelper);
+
     new ResizeObserver(() => this.resize()).observe(container);
     this.resize();
     this.renderer.setAnimationLoop(() => {
@@ -70,11 +80,13 @@ export class Viewer {
     this.disposeModel();
     this.modelRoot.add(object);
     this.applyWireframe();
+    this.refreshBBox();
     this.frameModel(true);
   }
 
   clearModel(): void {
     this.disposeModel();
+    this.refreshBBox();
   }
 
   frameModel(resetAngle = false): void {
@@ -130,6 +142,25 @@ export class Viewer {
 
   get wireframeOn(): boolean {
     return this.wireframe;
+  }
+
+  setBBoxVisible(visible: boolean): void {
+    this.bboxHelper.visible = visible;
+    if (visible) this.refreshBBox();
+  }
+
+  get bboxVisible(): boolean {
+    return this.bboxHelper.visible;
+  }
+
+  /** Recomputes the Box3 the helper renders; called when a model loads or
+   * the box is toggled on. */
+  private refreshBBox(): void {
+    if (this.modelRoot.children.length === 0) {
+      this.bbox.makeEmpty();
+      return;
+    }
+    this.bbox.setFromObject(this.modelRoot);
   }
 
   private applyWireframe(): void {

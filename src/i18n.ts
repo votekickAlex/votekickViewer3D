@@ -22,6 +22,7 @@ export const ENGLISH: Record<string, string> = {
   "menu.plugins": "Plugins…",
   "menu.fullscreen": "Full screen",
   "menu.interface": "Interface",
+  "menu.boundingBox": "Bounding box",
   "menu.about": "About",
 
   "about.version": "Version {version}",
@@ -48,6 +49,7 @@ export const ENGLISH: Record<string, string> = {
   "hotkeys.resetView": "Reset view",
   "hotkeys.fullscreen": "Full screen",
   "hotkeys.interface": "Interface",
+  "hotkeys.boundingBox": "Bounding box",
   "hotkeys.quit": "Quit",
   "hotkeys.pressKey": "Press a key…",
   "hotkeys.title": "Click, then press the new key or mouse button (Esc cancels, Backspace clears)",
