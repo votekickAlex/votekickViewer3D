@@ -1,7 +1,7 @@
 # !votekickViewer3D
 
 A lightweight 3D model viewer for Windows. Double-click a model file in
-Explorer and it opens instantly in a minimal viewer — the photo-viewer
+Explorer and it opens instantly in a minimal viewer - the photo-viewer
 experience, for 3D models. Free and open source (MIT).
 
 <!-- Screenshot placeholder: drop a screenshot to docs/screenshot.png and
@@ -33,7 +33,7 @@ uncomment below.
 Or grab `votekickViewer3D_<version>-portable.zip` for a no-install,
 standalone `votekickViewer3D.exe`.
 
-Uninstalling is a standard Windows "Uninstall" — and the uninstaller's
+Uninstalling is a standard Windows "Uninstall" - and the uninstaller's
 "delete app data" checkbox decides whether your settings are removed too.
 
 ## Data locations
@@ -44,7 +44,7 @@ Uninstalling is a standard Windows "Uninstall" — and the uninstaller's
 
 ## Controls
 
-> **Work in progress** — the interface is actively being reworked; this
+> **Work in progress** - the interface is actively being reworked; this
 > section will be finalized once the menu settles. Currently:
 > `G` grid · `F` wireframe · `R` reset view · `Ctrl+O` open file.
 

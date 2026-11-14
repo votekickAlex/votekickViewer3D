@@ -6,9 +6,9 @@
 // safe writes; the frontend owns the schema, defaults and merging.
 //
 // Structure:
-//   view:    { grid, wireframe }        — View menu toggle states
-//   window:  { launchMaximized }        — applied by the backend on startup
-//   hotkeys: { open, grid, wireframe, reset } — editable in Settings
+//   view:    { grid, wireframe }        - View menu toggle states
+//   window:  { launchMaximized }        - applied by the backend on startup
+//   hotkeys: { open, grid, wireframe, reset } - editable in Settings
 
 import { DEFAULTS } from "./settings-schema";
 
@@ -21,7 +21,7 @@ type Invoke = (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
 let invoke: Invoke | null = null;
 
 /** Resolve the Tauri invoke function; null when running in a plain browser
- * (dev server) — settings then simply do not persist. */
+ * (dev server) - settings then simply do not persist. */
 async function resolveInvoke(): Promise<void> {
   if (invoke || !("__TAURI_INTERNALS__" in window)) return;
   const { invoke: tauriInvoke } = await import("@tauri-apps/api/core");

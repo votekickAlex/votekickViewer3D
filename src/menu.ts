@@ -6,6 +6,8 @@
 // re-evaluated every time a menu opens or is refreshed, so edited hotkeys
 // and language switches show up immediately.
 
+import { iconSvg } from "./icons";
+
 export interface MenuItemDef {
   label: string | (() => string);
   /** Right-aligned shortcut hint, e.g. "Ctrl+O" or a getter re-read on
@@ -13,6 +15,8 @@ export interface MenuItemDef {
   hint?: string | (() => string);
   /** Show a checkmark in front of the item when it returns true. */
   checked?: () => boolean;
+  /** Name from the icon set (src/icons.ts), rendered before the label. */
+  icon?: string;
   action?: () => void;
 }
 
@@ -22,6 +26,8 @@ export interface MenuDef {
   /** When set, the top-level button runs this action directly and has no
    * dropdown (e.g. About). */
   action?: () => void;
+  /** Icon for a direct-action top-level button (shown before the label). */
+  icon?: string;
 }
 
 export function createMenuBar(
@@ -77,6 +83,12 @@ export function createMenuBar(
       mark.className = "menu-check";
       mark.textContent = item.checked?.() ? "✓" : "";
       row.appendChild(mark);
+      if (item.icon) {
+        const icon = document.createElement("span");
+        icon.className = "menu-item-icon";
+        icon.innerHTML = iconSvg(item.icon);
+        row.appendChild(icon);
+      }
       const label = document.createElement("span");
       label.className = "menu-label";
       label.textContent = text(item.label);
@@ -160,7 +172,17 @@ export function createMenuBar(
       const button = document.createElement("button");
       button.type = "button";
       button.className = "menu-top";
-      button.textContent = text(def.label);
+      if (def.icon) {
+        const icon = document.createElement("span");
+        icon.className = "menu-item-icon";
+        icon.innerHTML = iconSvg(def.icon);
+        button.appendChild(icon);
+        const label = document.createElement("span");
+        label.textContent = text(def.label);
+        button.appendChild(label);
+      } else {
+        button.textContent = text(def.label);
+      }
       button.dataset.index = String(index);
 
       if (def.action) {

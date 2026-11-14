@@ -20,14 +20,17 @@
     <input type="file" id="file-input" hidden />
 
     <dialog id="settings-dialog">
-      <h2 data-i18n="settings.title">Settings</h2>
+      <div class="dialog-head">
+        <span class="dialog-icon" data-icon="cog-loop" aria-hidden="true"></span>
+        <h2 data-i18n="settings.title">Settings</h2>
+      </div>
       <label class="setting-row">
         <input type="checkbox" id="set-launch-maximized" />
         <span data-i18n="settings.launchMaximized">Launch maximized window</span>
       </label>
       <h3 data-i18n="settings.language">Language</h3>
       <select id="set-language" class="setting-select"></select>
-      <p class="dialog-note" data-i18n="settings.languageHint">Custom language: export english.json, copy it, translate, rename to your language and put it back into the lang folder — it appears in this list.</p>
+      <p class="dialog-note" data-i18n="settings.languageHint">Custom language: export english.json, copy it, translate, rename to your language and put it back into the lang folder - it appears in this list.</p>
       <h3 data-i18n="settings.hotkeys">Hotkeys</h3>
       <div id="hotkeys-rows"></div>
       <div class="dialog-actions">
@@ -37,7 +40,10 @@
     </dialog>
 
     <dialog id="plugins-dialog">
-      <h2 data-i18n="plugins.title">Plugins</h2>
+      <div class="dialog-head">
+        <span class="dialog-icon" data-icon="document-code" aria-hidden="true"></span>
+        <h2 data-i18n="plugins.title">Plugins</h2>
+      </div>
       <p data-i18n="plugins.todo">TODO: custom user plugins are planned for a future version.</p>
       <div class="dialog-actions">
         <button id="plugins-close" data-i18n="dialog.ok">OK</button>
@@ -45,9 +51,12 @@
     </dialog>
 
     <dialog id="about-dialog">
-      <h2>!votekickViewer3D</h2>
+      <div class="dialog-head">
+        <span class="dialog-icon" data-icon="question-circle" aria-hidden="true"></span>
+        <h2>!votekickViewer3D</h2>
+      </div>
       <p class="about-version" id="about-version">Version …</p>
-      <p class="about-link"><a href="https://votekickpanda.com/" id="about-link">votekickpanda.com</a></p>
+      <p class="about-link"><a href="https://votekickpanda.com/" id="about-link"><span class="link-icon" data-icon="external-link" aria-hidden="true"></span>votekickpanda.com</a></p>
       <div class="dialog-actions">
         <button id="about-close" data-i18n="dialog.ok">OK</button>
       </div>

@@ -29,7 +29,8 @@ export const ENGLISH: Record<string, string> = {
   "status.noModel": "No model loaded",
   "status.loading": "Loading…",
   "status.loadingModel": "Loading {name}…",
-  "status.parsing": "Parsing {name} — this can take a while for very large models…",
+  "status.parsing": "Parsing {name} - this can take a while for very large models…",
+  "status.info": "{name}  ·  {size} MB  ·  {polys} polys",
   "status.unsupported": "Unsupported file: {name}",
 
   "drop.hint": "Drop model file here",
@@ -39,7 +40,7 @@ export const ENGLISH: Record<string, string> = {
   "settings.hotkeys": "Hotkeys",
   "settings.language": "Language",
   "settings.languageHint":
-    "Custom language: english.json is created in the lang folder on first launch. Copy it, translate it, rename it to your language and put it back — it appears in this list.",
+    "Custom language: english.json is created in the lang folder on first launch. Copy it, translate it, rename it to your language and put it back - it appears in this list.",
 
   "hotkeys.open": "Open file",
   "hotkeys.grid": "Grid",
@@ -50,7 +51,7 @@ export const ENGLISH: Record<string, string> = {
   "hotkeys.quit": "Quit",
   "hotkeys.pressKey": "Press a key…",
   "hotkeys.title": "Click, then press the new key or mouse button (Esc cancels, Backspace clears)",
-  "hotkeys.capture": "Press a key or mouse button — Esc to cancel, Backspace to clear",
+  "hotkeys.capture": "Press a key or mouse button - Esc to cancel, Backspace to clear",
   "hotkeys.reset": "Reset hotkeys",
 
   "plugins.title": "Plugins",

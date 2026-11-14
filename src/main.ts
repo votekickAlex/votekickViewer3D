@@ -1,10 +1,12 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
+import * as THREE from "three";
 import { Viewer } from "./viewer";
 import { isSupportedFile, loadFromArrayBuffer, setResourceBase, SUPPORTED_EXTENSIONS } from "./loader";
 import { loadSettings, saveSettingsSoon, setSetting, settings, type AppSettings } from "./settings";
 import { DEFAULTS } from "./settings-schema";
 import { createMenuBar, type MenuDef } from "./menu";
 import { currentLanguage, englishTemplate, setLanguage, t } from "./i18n";
+import { iconSvg } from "./icons";
 import { version as APP_VERSION } from "../package.json";
 
 const APP_TITLE = "!votekickViewer3D";
@@ -24,6 +26,7 @@ const loadingOverlay = document.createElement("div");
 loadingOverlay.id = "loading";
 loadingOverlay.hidden = true;
 loadingOverlay.innerHTML = `
+  <div id="loading-icon" class="loading-icon"></div>
   <div id="loading-text">Loading…</div>
   <div id="loading-bar"><div id="loading-bar-fill"></div></div>`;
 document.body.appendChild(loadingOverlay);
@@ -37,6 +40,13 @@ await loadSettings();
 viewer.setGridVisible(settings.view.grid);
 viewer.setWireframe(settings.view.wireframe);
 await setLanguage(settings.general.language);
+
+// Inline the animated line-md icons into every element carrying a
+// data-icon attribute (dialog headers, about link). Static HTML only;
+// menu icons are inserted by menu.ts when a menu opens.
+document.querySelectorAll<HTMLElement>("[data-icon]").forEach((el) => {
+  el.innerHTML = iconSvg(el.dataset.icon!);
+});
 
 // ---------- shared actions (menu + hotkeys) ----------
 
@@ -129,7 +139,7 @@ const MOUSE_BUTTON_NAMES = [
 ];
 
 /** Canonical key label from the PHYSICAL key (e.code), not the character
- * (e.key): Russian and English layouts must produce the same combination —
+ * (e.key): Russian and English layouts must produce the same combination -
  * this app is English-only by design. */
 function keyLabel(e: KeyboardEvent): string {
   const letter = /^Key([A-Z])$/.exec(e.code);
@@ -163,7 +173,7 @@ function comboFromMouseEvent(e: MouseEvent): string {
 }
 
 function comboLabel(combo: string): string {
-  return combo || "—"; // "—" = unassigned (cleared because of a duplicate)
+  return combo || "-"; // "-" = unassigned (cleared because of a duplicate)
 }
 
 const hotkeysRows = document.getElementById("hotkeys-rows")!;
@@ -302,29 +312,30 @@ const menus: MenuDef[] = [
   {
     label: () => t("menu.file"),
     items: [
-      { label: () => t("menu.open"), hint: () => settings.hotkeys.open, action: openFileDialog },
-      { label: () => t("menu.quit"), hint: () => settings.hotkeys.quit, action: () => void quitApp() },
+      { label: () => t("menu.open"), hint: () => settings.hotkeys.open, icon: "folder-arrow-right", action: openFileDialog },
+      { label: () => t("menu.quit"), hint: () => settings.hotkeys.quit, icon: "logout", action: () => void quitApp() },
     ],
   },
   {
     label: () => t("menu.view"),
     items: [
-      { label: () => t("menu.resetView"), hint: () => settings.hotkeys.reset, action: () => viewer.frameModel(true) },
-      { label: () => t("menu.grid"), hint: () => settings.hotkeys.grid, checked: () => viewer.gridVisible, action: toggleGrid },
-      { label: () => t("menu.wireframe"), hint: () => settings.hotkeys.wireframe, checked: () => viewer.wireframeOn, action: toggleWireframe },
-      { label: () => t("menu.fullscreen"), hint: () => settings.hotkeys.fullscreen, checked: () => fullscreenOn, action: () => void toggleFullscreen() },
-      { label: () => t("menu.interface"), hint: () => settings.hotkeys.interface, checked: () => !uiHidden, action: toggleInterface },
+      { label: () => t("menu.resetView"), hint: () => settings.hotkeys.reset, icon: "compass", action: () => viewer.frameModel(true) },
+      { label: () => t("menu.grid"), hint: () => settings.hotkeys.grid, checked: () => viewer.gridVisible, icon: "grid-3", action: toggleGrid },
+      { label: () => t("menu.wireframe"), hint: () => settings.hotkeys.wireframe, checked: () => viewer.wireframeOn, icon: "hash", action: toggleWireframe },
+      { label: () => t("menu.fullscreen"), hint: () => settings.hotkeys.fullscreen, checked: () => fullscreenOn, icon: "arrows-diagonal", action: () => void toggleFullscreen() },
+      { label: () => t("menu.interface"), hint: () => settings.hotkeys.interface, checked: () => !uiHidden, icon: "monitor-screenshot", action: toggleInterface },
     ],
   },
   {
     label: () => t("menu.tools"),
     items: [
-      { label: () => t("menu.settings"), action: showSettings },
-      { label: () => t("menu.plugins"), action: () => pluginsDialog.showModal() },
+      { label: () => t("menu.settings"), icon: "cog-loop", action: showSettings },
+      { label: () => t("menu.plugins"), icon: "document-code", action: () => pluginsDialog.showModal() },
     ],
   },
   {
     label: () => t("menu.about"),
+    icon: "question-circle",
     action: showAbout,
   },
 ];
@@ -485,8 +496,14 @@ async function loadModel(buffer: ArrayBuffer, name: string): Promise<void> {
     if (seq !== loadingSeq) return; // superseded by another open
 
     viewer.setModel(result.object);
-    setStatus(`${name}  ·  ${(buffer.byteLength / 1024 / 1024).toFixed(1)} MB`);
-    document.title = `${name} — ${APP_TITLE}`;
+    setStatus(
+      t("status.info", {
+        name,
+        size: (buffer.byteLength / 1024 / 1024).toFixed(1),
+        polys: countTriangles(result.object).toLocaleString("en-US"),
+      }),
+    );
+    document.title = `${name} - ${APP_TITLE}`;
   } catch (err) {
     if (seq !== loadingSeq) return;
     handleLoadError(err, name);
@@ -495,11 +512,26 @@ async function loadModel(buffer: ArrayBuffer, name: string): Promise<void> {
   }
 }
 
+/** Total triangles across every mesh in the loaded model. */
+function countTriangles(root: THREE.Object3D): number {
+  let tris = 0;
+  root.traverse((child) => {
+    const mesh = child as THREE.Mesh;
+    if (!(mesh as unknown as { isMesh?: boolean }).isMesh || !mesh.geometry) return;
+    const geometry = mesh.geometry as THREE.BufferGeometry;
+    const index = geometry.getIndex();
+    const position = geometry.getAttribute("position");
+    const corners = index ? index.count : position ? position.count : 0;
+    tris += Math.floor(corners / 3);
+  });
+  return tris;
+}
+
 function handleLoadError(err: unknown, name: string): void {
   viewer.clearModel();
   console.error(err);
   const message = err instanceof Error ? err.message : String(err);
-  const line = `Failed: ${name} — ${message}`;
+  const line = `Failed: ${name} - ${message}`;
   setStatus(line, true);
   void logError(line);
 }
@@ -519,6 +551,9 @@ function readFile(file: File, onProgress: (p: number) => void): Promise<ArrayBuf
 function setLoading(on: boolean, text?: string, progress = 0): void {
   loadingOverlay.hidden = !on;
   if (on) {
+    // Re-inserting the spinner SVG replays its SMIL animation.
+    loadingOverlay.querySelector<HTMLElement>("#loading-icon")!.innerHTML =
+      iconSvg("downloading-loop");
     const textEl = loadingOverlay.querySelector("#loading-text")!;
     const fill = loadingOverlay.querySelector<HTMLElement>("#loading-bar-fill")!;
     if (text) textEl.textContent = text;

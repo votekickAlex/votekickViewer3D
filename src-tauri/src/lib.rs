@@ -1,6 +1,6 @@
 use tauri::{Emitter, Manager};
 
-/// App data folder name under %APPDATA% (deliberately without "!" — file
+/// App data folder name under %APPDATA% (deliberately without "!" - file
 /// system naming convention), unlike the product display name.
 const DATA_DIR_NAME: &str = "votekickViewer3D";
 
@@ -25,7 +25,7 @@ fn settings_path(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
 }
 
 /// The whole settings file as a JSON string; `None` when it does not exist
-/// yet (first launch) — the frontend then uses its built-in defaults.
+/// yet (first launch) - the frontend then uses its built-in defaults.
 #[tauri::command]
 fn load_settings(app: tauri::AppHandle) -> Option<String> {
     std::fs::read_to_string(settings_path(&app)?).ok()
@@ -56,7 +56,7 @@ fn lang_dir(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
 }
 
 /// Names (file stems) of the user-provided language files in the lang
-/// folder; the built-in "english" is not listed — the frontend adds it.
+/// folder; the built-in "english" is not listed - the frontend adds it.
 #[tauri::command]
 fn list_languages(app: tauri::AppHandle) -> Vec<String> {
     let mut names = Vec::new();
@@ -106,7 +106,7 @@ fn save_language_template(app: tauri::AppHandle, json: String) -> Result<(), Str
 }
 
 /// Applies the saved window state on startup, while the window is still
-/// hidden (tauri.conf.json sets `visible: false`), then shows it — so the
+/// hidden (tauri.conf.json sets `visible: false`), then shows it - so the
 /// window never visibly resizes or jumps.
 ///
 /// - `window.launchMaximized`: start maximized

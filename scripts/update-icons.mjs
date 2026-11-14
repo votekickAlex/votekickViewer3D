@@ -3,7 +3,7 @@
 //   app.ico -> src-tauri/icons/icon.ico   (exe / installer / shortcut icon)
 //
 // and clears the cached Windows resource, because the generated resource
-// script only references the .ico path — cargo cannot detect that the file
+// script only references the .ico path - cargo cannot detect that the file
 // CONTENT changed, so without this step the exe keeps the old icon.
 //
 // Usage: npm run icons   (after replacing app.ico; if logo.png changed as
