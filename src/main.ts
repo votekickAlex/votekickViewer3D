@@ -33,12 +33,19 @@ document.body.appendChild(loadingOverlay);
 
 const viewer = new Viewer(viewport);
 
+// The WebView2 default context menu (Back, Refresh, Save as, Print)
+// exposes the app as a plain HTML page; a model viewer has no use for it.
+window.addEventListener("contextmenu", (e) => e.preventDefault());
+
 // Saved settings (grid, wireframe) must be applied to the viewer before the
 // menu binds, so checkmarks reflect the loaded state. The saved language is
 // applied before any t() call (menus, dialogs) is made.
 await loadSettings();
 viewer.setGridVisible(settings.view.grid);
 viewer.setWireframe(settings.view.wireframe);
+viewer.setGridColor(settings.view.gridColor);
+viewer.setWireframeColor(settings.view.wireframeColor);
+viewer.setBBoxColor(settings.view.bboxColor);
 await setLanguage(settings.general.language);
 
 // Inline the animated line-md icons into every element carrying a
@@ -296,6 +303,9 @@ function showSettings(): void {
   launchMaximized.checked = settings.window.launchMaximized;
   const alwaysOnTop = document.getElementById("set-always-on-top") as HTMLInputElement;
   alwaysOnTop.checked = settings.window.alwaysOnTop;
+  (document.getElementById("set-grid-color") as HTMLInputElement).value = settings.view.gridColor;
+  (document.getElementById("set-wireframe-color") as HTMLInputElement).value = settings.view.wireframeColor;
+  (document.getElementById("set-bbox-color") as HTMLInputElement).value = settings.view.bboxColor;
   renderHotkeyRows();
   void populateLanguages();
   settingsDialog.showModal();
@@ -415,6 +425,25 @@ const fpsEl = document.getElementById("status-fps")!;
 setInterval(() => {
   fpsEl.textContent = `${viewer.fps} fps`;
 }, 500);
+
+// Viewport colors (Settings > Colors): persisted and applied live.
+document.getElementById("set-grid-color")!.addEventListener("input", (e) => {
+  const value = (e.target as HTMLInputElement).value;
+  setSetting("view", "gridColor", value);
+  viewer.setGridColor(value);
+});
+
+document.getElementById("set-wireframe-color")!.addEventListener("input", (e) => {
+  const value = (e.target as HTMLInputElement).value;
+  setSetting("view", "wireframeColor", value);
+  viewer.setWireframeColor(value);
+});
+
+document.getElementById("set-bbox-color")!.addEventListener("input", (e) => {
+  const value = (e.target as HTMLInputElement).value;
+  setSetting("view", "bboxColor", value);
+  viewer.setBBoxColor(value);
+});
 
 document.getElementById("hotkeys-reset")!.addEventListener("click", () => {
   Object.assign(settings.hotkeys, structuredClone(DEFAULTS.hotkeys));

@@ -3,9 +3,11 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 
 const BG_COLOR = 0x1c1f24;
-const GRID_COLOR = 0x454b55;
+/** Fallback grid color; the persisted setting overrides it at startup. */
+const DEFAULT_GRID_COLOR = 0xb03a3a;
 const GRID_CENTER_COLOR = 0x565d68;
-const BBOX_COLOR = 0x4f9cf9;
+const DEFAULT_BBOX_COLOR = 0x4f9cf9;
+const DEFAULT_WIREFRAME_COLOR = 0xffffff;
 const UP = new THREE.Vector3(0, 1, 0);
 
 // Axis colors follow Blender: its X red, Y green, Z blue map onto our
@@ -23,6 +25,10 @@ export class Viewer {
   private grid: THREE.Group;
   private modelRoot: THREE.Group;
   private wireframe = false;
+  /** Shared material for wireframe mode: one flat, user-colored look. */
+  private wireframeMaterial: THREE.MeshBasicMaterial;
+  /** Original per-mesh materials, kept to restore when wireframe goes off. */
+  private originalMaterials = new Map<THREE.Mesh, THREE.Material | THREE.Material[]>();
   private bbox: THREE.Box3;
   private bboxHelper: THREE.Box3Helper;
   private orthoCamera: THREE.OrthographicCamera;
@@ -70,7 +76,7 @@ export class Viewer {
     sun.position.set(5, 10, 7);
     this.scene.add(sun);
 
-    this.grid = this.createGrid();
+    this.grid = this.createGrid(DEFAULT_GRID_COLOR);
     this.scene.add(this.grid);
 
     this.modelRoot = new THREE.Group();
@@ -79,9 +85,15 @@ export class Viewer {
     // The bounding box helper reads this Box3 on every frame, so the box
     // edges follow the model automatically once the Box3 is recomputed.
     this.bbox = new THREE.Box3();
-    this.bboxHelper = new THREE.Box3Helper(this.bbox, BBOX_COLOR);
+    this.bboxHelper = new THREE.Box3Helper(this.bbox, DEFAULT_BBOX_COLOR);
     this.bboxHelper.visible = false;
     this.scene.add(this.bboxHelper);
+
+    this.wireframeMaterial = new THREE.MeshBasicMaterial({
+      color: DEFAULT_WIREFRAME_COLOR,
+      wireframe: true,
+      toneMapped: false,
+    });
 
     new ResizeObserver(() => this.resize()).observe(container);
     this.resize();
@@ -98,16 +110,17 @@ export class Viewer {
     });
   }
 
-  private createGrid(): THREE.Group {
+  private createGrid(gridColor: number): THREE.Group {
     const group = new THREE.Group();
 
-    const grid = new THREE.GridHelper(20, 20, GRID_CENTER_COLOR, GRID_COLOR);
+    const grid = new THREE.GridHelper(20, 20, GRID_CENTER_COLOR, gridColor);
     const mat = grid.material as THREE.LineBasicMaterial;
-    mat.transparent = true;
-    mat.opacity = 0.9;
-    // Without this ACES tone mapping darkened the lines so far that a
-    // bright model next to them made the grid disappear.
+    // Fully opaque, depth test off and drawn last: the grid stays a solid
+    // constant-color overlay on top of the model instead of hiding behind
+    // it or bleeding through it.
+    mat.depthTest = false;
     mat.toneMapped = false;
+    grid.renderOrder = 10;
     // Repaint the two center lines through the origin: X red, Z green
     // (Blender's ground plane axes). For GridHelper(20, 20) the line
     // block i occupies vertices 4i..4i+3: 4i/4i+1 are the line along X,
@@ -126,10 +139,12 @@ export class Viewer {
         dir.clone().multiplyScalar(-1),
         dir.clone(),
       ]);
-      return new THREE.Line(
+      const line = new THREE.Line(
         geo,
-        new THREE.LineBasicMaterial({ color, toneMapped: false }),
+        new THREE.LineBasicMaterial({ color, toneMapped: false, depthTest: false }),
       );
+      line.renderOrder = 10;
+      return line;
     };
     group.add(axisLine(new THREE.Vector3(1, 0, 0), AXIS_X_COLOR));
     group.add(axisLine(new THREE.Vector3(0, 1, 0), AXIS_Y_COLOR));
@@ -187,6 +202,11 @@ export class Viewer {
     this.orthoCamera.far = this.camera.far;
     if (this.orthoOn) {
       this.orthoCamera.position.copy(cam.position);
+      // The frustum is recomputed from scratch, so a zoom factor left by
+      // wheel zoom must be dropped: OrbitControls zooms an orthographic
+      // camera by scaling camera.zoom instead of moving it, and the old
+      // factor would keep the model at its previous on-screen size.
+      this.orthoCamera.zoom = 1;
       this.orthoHalfH = Math.tan(fov / 2) * distance;
       this.updateOrthoFrustum();
     }
@@ -199,6 +219,31 @@ export class Viewer {
 
   get gridVisible(): boolean {
     return this.grid.visible;
+  }
+
+  /** Rebuilds the grid with a new color (Settings > Colors); visibility
+   * and the fixed Blender axis colors are preserved. */
+  setGridColor(hex: string): void {
+    const visible = this.grid.visible;
+    this.scene.remove(this.grid);
+    this.grid.traverse((obj) => {
+      const line = obj as THREE.Line;
+      line.geometry?.dispose();
+      (line.material as THREE.Material).dispose();
+    });
+    this.grid = this.createGrid(new THREE.Color(hex).getHex());
+    this.grid.visible = visible;
+    this.scene.add(this.grid);
+  }
+
+  /** Color of the flat wireframe overlay (Settings > Colors). */
+  setWireframeColor(hex: string): void {
+    this.wireframeMaterial.color.set(hex);
+  }
+
+  /** Color of the bounding box edges (Settings > Colors). */
+  setBBoxColor(hex: string): void {
+    (this.bboxHelper.material as THREE.LineBasicMaterial).color.set(hex);
   }
 
   // ---------- Blender-style views ----------
@@ -350,9 +395,19 @@ export class Viewer {
     this.modelRoot.traverse((obj) => {
       const mesh = obj as THREE.Mesh;
       if (!mesh.isMesh) return;
-      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-      for (const m of materials) {
-        if ("wireframe" in m) (m as THREE.MeshBasicMaterial).wireframe = this.wireframe;
+      if (this.wireframe) {
+        // Swap to the shared flat-colored wireframe material, keeping the
+        // original one to restore; a Map guards shared/duplicate visits.
+        if (!this.originalMaterials.has(mesh)) {
+          this.originalMaterials.set(mesh, mesh.material);
+        }
+        mesh.material = this.wireframeMaterial;
+      } else {
+        const original = this.originalMaterials.get(mesh);
+        if (original !== undefined) {
+          mesh.material = original;
+          this.originalMaterials.delete(mesh);
+        }
       }
     });
   }
@@ -361,6 +416,10 @@ export class Viewer {
     this.modelRoot.traverse((obj) => {
       const mesh = obj as THREE.Mesh;
       if (mesh.isMesh) {
+        // Point back at the original materials so the originals (not the
+        // shared wireframe material) get disposed below.
+        const original = this.originalMaterials.get(mesh);
+        if (original !== undefined) mesh.material = original;
         mesh.geometry?.dispose();
         const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
         for (const m of materials) {
@@ -372,6 +431,7 @@ export class Viewer {
         }
       }
     });
+    this.originalMaterials.clear();
     this.modelRoot.clear();
   }
 

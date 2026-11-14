@@ -6,6 +6,9 @@ export const DEFAULTS = {
   view: {
     grid: true,
     wireframe: false,
+    gridColor: "#b03a3a",
+    wireframeColor: "#ffffff",
+    bboxColor: "#4f9cf9",
   },
   window: {
     launchMaximized: false,

@@ -46,6 +46,10 @@ export const ENGLISH: Record<string, string> = {
   "settings.title": "Settings",
   "settings.launchMaximized": "Launch maximized window",
   "settings.alwaysOnTop": "Always on top",
+  "settings.colors": "Colors",
+  "settings.gridColor": "Grid",
+  "settings.wireframeColor": "Wireframe",
+  "settings.bboxColor": "Bounding box",
   "settings.hotkeys": "Hotkeys",
   "settings.language": "Language",
   "settings.languageHint":
