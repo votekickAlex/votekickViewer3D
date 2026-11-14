@@ -350,6 +350,15 @@ const menus: MenuDef[] = [
     icon: "image",
     items: [
       { label: () => t("menu.resetView"), hint: () => settings.hotkeys.reset, icon: "compass", action: () => viewer.frameModel(true) },
+      { label: () => t("menu.orthographic"), hint: "Num 5", checked: () => viewer.orthographic, action: () => viewer.setOrthographic(!viewer.orthographic) },
+      { separator: true },
+      { label: () => t("menu.front"), hint: "Num 1", action: () => viewer.setViewPreset("front") },
+      { label: () => t("menu.back"), hint: "Ctrl+Num 1", action: () => viewer.setViewPreset("back") },
+      { label: () => t("menu.left"), hint: "Ctrl+Num 3", action: () => viewer.setViewPreset("left") },
+      { label: () => t("menu.right"), hint: "Num 3", action: () => viewer.setViewPreset("right") },
+      { label: () => t("menu.top"), hint: "Num 7", action: () => viewer.setViewPreset("top") },
+      { label: () => t("menu.bottom"), hint: "Ctrl+Num 7", action: () => viewer.setViewPreset("bottom") },
+      { separator: true },
       { label: () => t("menu.grid"), hint: () => settings.hotkeys.grid, checked: () => viewer.gridVisible, icon: "grid-3", action: toggleGrid },
       { label: () => t("menu.wireframe"), hint: () => settings.hotkeys.wireframe, checked: () => viewer.wireframeOn, icon: "hash", action: toggleWireframe },
       { label: () => t("menu.boundingBox"), hint: () => settings.hotkeys.boundingBox, checked: () => viewer.bboxVisible, icon: "square", action: toggleBBox },
@@ -642,6 +651,55 @@ window.addEventListener("keydown", (e) => {
   // Open dialogs swallow keys; Escape closes them natively.
   if (settingsDialog.open || pluginsDialog.open || aboutDialog.open) return;
   if (e.target instanceof HTMLInputElement) return;
+
+  // Blender-style numpad view shortcuts, fixed (not editable): e.code is
+  // used, so they work with NumLock on or off and in any layout.
+  switch (e.code) {
+    case "Numpad1":
+      e.preventDefault();
+      viewer.setViewPreset(e.ctrlKey ? "back" : "front");
+      return;
+    case "Numpad3":
+      e.preventDefault();
+      viewer.setViewPreset(e.ctrlKey ? "left" : "right");
+      return;
+    case "Numpad7":
+      e.preventDefault();
+      viewer.setViewPreset(e.ctrlKey ? "bottom" : "top");
+      return;
+    case "Numpad9":
+      e.preventDefault();
+      viewer.flipView();
+      return;
+    case "Numpad5":
+      e.preventDefault();
+      viewer.setOrthographic(!viewer.orthographic);
+      return;
+    case "Numpad4":
+      e.preventDefault();
+      viewer.orbitView(-15, 0);
+      return;
+    case "Numpad6":
+      e.preventDefault();
+      viewer.orbitView(15, 0);
+      return;
+    case "Numpad8":
+      e.preventDefault();
+      viewer.orbitView(0, 15);
+      return;
+    case "Numpad2":
+      e.preventDefault();
+      viewer.orbitView(0, -15);
+      return;
+    case "NumpadAdd":
+      e.preventDefault();
+      viewer.zoomView(0.8);
+      return;
+    case "NumpadSubtract":
+      e.preventDefault();
+      viewer.zoomView(1.25);
+      return;
+  }
 
   for (const action of HOTKEY_ACTIONS) {
     const combo = settings.hotkeys[action.key];

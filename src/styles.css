@@ -147,6 +147,12 @@ button:focus-visible {
   flex: none;
 }
 
+.menu-separator {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 6px;
+}
+
 .menu-label {
   flex: 1;
 }

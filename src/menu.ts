@@ -9,12 +9,14 @@
 import { iconSvg } from "./icons";
 
 export interface MenuItemDef {
-  label: string | (() => string);
+  label?: string | (() => string);
   /** Right-aligned shortcut hint, e.g. "Ctrl+O" or a getter re-read on
    * every menu open (so edited hotkeys show up immediately). */
   hint?: string | (() => string);
   /** Show a checkmark in front of the item when it returns true. */
   checked?: () => boolean;
+  /** Render a horizontal separator line instead of a button. */
+  separator?: boolean;
   /** Name from the icon set (src/icons.ts), rendered before the label. */
   icon?: string;
   action?: () => void;
@@ -73,6 +75,12 @@ export function createMenuBar(
     const dropdown = document.createElement("div");
     dropdown.className = "menu-dropdown";
     for (const item of def.items ?? []) {
+      if (item.separator) {
+        const sep = document.createElement("div");
+        sep.className = "menu-separator";
+        dropdown.appendChild(sep);
+        continue;
+      }
       const row = document.createElement("button");
       row.type = "button";
       row.className = "menu-item";
@@ -91,7 +99,7 @@ export function createMenuBar(
       }
       const label = document.createElement("span");
       label.className = "menu-label";
-      label.textContent = text(item.label);
+      label.textContent = item.label ? text(item.label) : "";
       row.appendChild(label);
       if (item.hint) {
         const hint = document.createElement("span");

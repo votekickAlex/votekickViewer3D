@@ -6,6 +6,7 @@ const BG_COLOR = 0x1c1f24;
 const GRID_COLOR = 0x3a3f47;
 const GRID_CENTER_COLOR = 0x565d68;
 const BBOX_COLOR = 0x4f9cf9;
+const UP = new THREE.Vector3(0, 1, 0);
 
 export class Viewer {
   readonly renderer: THREE.WebGLRenderer;
@@ -18,6 +19,10 @@ export class Viewer {
   private wireframe = false;
   private bbox: THREE.Box3;
   private bboxHelper: THREE.Box3Helper;
+  private orthoCamera: THREE.OrthographicCamera;
+  private orthoOn = false;
+  /** Half height of the orthographic frustum (world units at zoom 1). */
+  private orthoHalfH = 1;
 
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -39,6 +44,15 @@ export class Viewer {
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.08;
     this.controls.screenSpacePanning = true;
+
+    // Orthographic twin: the frustum is sized so a switch keeps the same
+    // on-screen scale (see setOrthographic). controls.object is swapped
+    // between the two cameras.
+    const initialDist = this.camera.position.length();
+    this.orthoHalfH = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) * initialDist;
+    this.orthoCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 4000);
+    this.orthoCamera.position.copy(this.camera.position);
+    this.updateOrthoFrustum();
 
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x444455, 0.6));
     const sun = new THREE.DirectionalLight(0xffffff, 1.2);
@@ -62,7 +76,7 @@ export class Viewer {
     this.resize();
     this.renderer.setAnimationLoop(() => {
       this.controls.update();
-      this.renderer.render(this.scene, this.camera);
+      this.renderer.render(this.scene, this.activeCamera);
     });
   }
 
@@ -114,12 +128,21 @@ export class Viewer {
     if (resetAngle || dir.lengthSq() < 1e-6) dir.set(3, 2, 4);
 
     this.controls.target.copy(center);
-    this.camera.position.copy(center).addScaledVector(dir.normalize(), distance);
+    const cam = this.activeCamera;
+    cam.up.set(0, 1, 0);
+    cam.position.copy(center).addScaledVector(dir.normalize(), distance);
 
     // Dynamic near/far so huge and tiny models both render correctly.
     this.camera.near = Math.max(maxDim / 1000, 0.001);
     this.camera.far = Math.max(distance * 100, 100);
     this.camera.updateProjectionMatrix();
+    this.orthoCamera.near = this.camera.near;
+    this.orthoCamera.far = this.camera.far;
+    if (this.orthoOn) {
+      this.orthoCamera.position.copy(cam.position);
+      this.orthoHalfH = Math.tan(fov / 2) * distance;
+      this.updateOrthoFrustum();
+    }
     this.controls.update();
   }
 
@@ -129,6 +152,119 @@ export class Viewer {
 
   get gridVisible(): boolean {
     return this.grid.visible;
+  }
+
+  // ---------- Blender-style views ----------
+
+  get activeCamera(): THREE.Camera {
+    return this.orthoOn ? this.orthoCamera : this.camera;
+  }
+
+  get orthographic(): boolean {
+    return this.orthoOn;
+  }
+
+  /** Toggles between the perspective and the orthographic camera, keeping
+   * the on-screen scale and the camera position/target. */
+  setOrthographic(on: boolean): void {
+    if (on === this.orthoOn) return;
+    const from = this.activeCamera;
+    const dir = from.position.clone().sub(this.controls.target);
+    if (on) {
+      // Entering ortho: frustum matches the current perspective view.
+      const dist = Math.max(dir.length(), 1e-6);
+      this.orthoHalfH =
+        Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) * dist;
+      this.orthoCamera.zoom = 1;
+      this.orthoCamera.position.copy(from.position);
+      this.updateOrthoFrustum();
+    } else {
+      // Leaving ortho: place the perspective camera so the view keeps its
+      // size (frustum half height / tan(fov/2) = matching distance).
+      const dist =
+        this.orthoHalfH / this.orthoCamera.zoom /
+        Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
+      dir.setLength(dist);
+      this.camera.position.copy(this.controls.target).add(dir);
+    }
+    this.camera.up.copy(from.up);
+    this.orthoCamera.up.copy(from.up);
+    this.orthoOn = on;
+    this.controls.object = this.activeCamera;
+    this.controls.update();
+  }
+
+  private updateOrthoFrustum(): void {
+    const halfW = this.orthoHalfH * this.camera.aspect;
+    this.orthoCamera.left = -halfW;
+    this.orthoCamera.right = halfW;
+    this.orthoCamera.top = this.orthoHalfH;
+    this.orthoCamera.bottom = -this.orthoHalfH;
+    this.orthoCamera.updateProjectionMatrix();
+  }
+
+  /** Canonical axis views. Front/Back look along Z, Left/Right along X,
+   * Top/Bottom along Y; up is +Y except on Top/Bottom where +Z keeps the
+   * view direction and the up vector from being parallel. */
+  setViewPreset(preset: "front" | "back" | "left" | "right" | "top" | "bottom"): void {
+    const dirs: Record<typeof preset, [number, number, number]> = {
+      front: [0, 0, 1],
+      back: [0, 0, -1],
+      right: [1, 0, 0],
+      left: [-1, 0, 0],
+      top: [0, 1, 0],
+      bottom: [0, -1, 0],
+    };
+    const cam = this.activeCamera;
+    const dir = cam.position.clone().sub(this.controls.target);
+    const dist = dir.length() > 1e-6 ? dir.length() : 5;
+    cam.up.set(0, 1, 0);
+    if (preset === "top" || preset === "bottom") cam.up.set(0, 0, -1);
+    cam.position
+      .copy(this.controls.target)
+      .addScaledVector(new THREE.Vector3(...dirs[preset]), dist);
+    this.controls.update();
+  }
+
+  /** Orbits the camera around the target: yaw around world up, pitch
+   * around the view's horizontal (right) axis. Used by numpad 2/4/6/8. */
+  orbitView(yawDeg: number, pitchDeg: number): void {
+    const cam = this.activeCamera;
+    const dir = cam.position.clone().sub(this.controls.target);
+    if (dir.lengthSq() < 1e-12) return;
+    if (yawDeg !== 0) dir.applyAxisAngle(UP, THREE.MathUtils.degToRad(yawDeg));
+    if (pitchDeg !== 0) {
+      const right = new THREE.Vector3().crossVectors(dir, cam.up).normalize();
+      if (right.lengthSq() > 1e-12) {
+        dir.applyAxisAngle(right, THREE.MathUtils.degToRad(pitchDeg));
+      }
+    }
+    cam.position.copy(this.controls.target).add(dir);
+    this.controls.update();
+  }
+
+  /** Zooms in (factor < 1) or out (factor > 1): the perspective camera
+   * dollies, the orthographic camera shrinks/grows its frustum. */
+  zoomView(factor: number): void {
+    if (this.orthoOn) {
+      this.orthoHalfH *= factor;
+      this.updateOrthoFrustum();
+      return;
+    }
+    const dir = this.camera.position.clone().sub(this.controls.target);
+    if (dir.lengthSq() < 1e-12) return;
+    dir.multiplyScalar(factor);
+    this.camera.position.copy(this.controls.target).add(dir);
+    this.controls.update();
+  }
+
+  /** Numpad 9: jumps to the opposite side of the current view. */
+  flipView(): void {
+    const cam = this.activeCamera;
+    const dir = cam.position.clone().sub(this.controls.target);
+    if (dir.lengthSq() < 1e-12) return;
+    cam.position.copy(this.controls.target).sub(dir);
+    this.controls.update();
   }
 
   get hasModel(): boolean {
@@ -198,6 +334,7 @@ export class Viewer {
     if (w === 0 || h === 0) return;
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    this.updateOrthoFrustum();
     this.renderer.setSize(w, h);
   }
 }

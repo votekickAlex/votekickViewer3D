@@ -23,6 +23,13 @@ export const ENGLISH: Record<string, string> = {
   "menu.fullscreen": "Full screen",
   "menu.interface": "Interface",
   "menu.boundingBox": "Bounding box",
+  "menu.orthographic": "Orthographic",
+  "menu.front": "Front",
+  "menu.back": "Back",
+  "menu.left": "Left",
+  "menu.right": "Right",
+  "menu.top": "Top",
+  "menu.bottom": "Bottom",
   "menu.about": "About",
 
   "about.version": "Version {version}",
