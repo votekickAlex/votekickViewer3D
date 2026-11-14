@@ -110,21 +110,28 @@ fn save_language_template(app: tauri::AppHandle, json: String) -> Result<(), Str
 /// window never visibly resizes or jumps.
 ///
 /// - `window.launchMaximized`: start maximized
+/// - `window.alwaysOnTop`: keep the window above all others
 /// - otherwise: the fixed 640x480 window from the config, centered on the
 ///   screen (the size is deliberately not persisted)
 fn apply_startup_window_state(app: &tauri::App) {
     let Some(window) = app.get_webview_window("main") else { return };
 
-    let launch_maximized = settings_path(app.handle())
-        .and_then(|path| std::fs::read_to_string(path).ok())
-        .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
-        .and_then(|value| value["window"]["launchMaximized"].as_bool())
-        .unwrap_or(false);
+    let setting = |key: &str| {
+        settings_path(app.handle())
+            .and_then(|path| std::fs::read_to_string(path).ok())
+            .and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+            .and_then(|value| value["window"][key].as_bool())
+            .unwrap_or(false)
+    };
 
-    if launch_maximized {
+    if setting("launchMaximized") {
         let _ = window.maximize();
     } else {
         let _ = window.center();
+    }
+
+    if setting("alwaysOnTop") {
+        let _ = window.set_always_on_top(true);
     }
 
     let _ = window.show();

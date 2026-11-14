@@ -3,10 +3,16 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 
 const BG_COLOR = 0x1c1f24;
-const GRID_COLOR = 0x3a3f47;
+const GRID_COLOR = 0x454b55;
 const GRID_CENTER_COLOR = 0x565d68;
 const BBOX_COLOR = 0x4f9cf9;
 const UP = new THREE.Vector3(0, 1, 0);
+
+// Axis colors follow Blender: its X red, Y green, Z blue map onto our
+// Y-up scene as x red, y (up) blue, z green.
+const AXIS_X_COLOR = 0xd95454;
+const AXIS_Y_COLOR = 0x4a90d9;
+const AXIS_Z_COLOR = 0x5aa02c;
 
 export class Viewer {
   readonly renderer: THREE.WebGLRenderer;
@@ -23,6 +29,11 @@ export class Viewer {
   private orthoOn = false;
   /** Half height of the orthographic frustum (world units at zoom 1). */
   private orthoHalfH = 1;
+  /** Cheap FPS counter: frames counted in the render loop, averaged over
+   * half a second; the status bar reads `fps`. */
+  private frames = 0;
+  private lastFpsTime = performance.now();
+  fps = 0;
 
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -77,16 +88,52 @@ export class Viewer {
     this.renderer.setAnimationLoop(() => {
       this.controls.update();
       this.renderer.render(this.scene, this.activeCamera);
+      this.frames++;
+      const now = performance.now();
+      if (now - this.lastFpsTime >= 500) {
+        this.fps = Math.round((this.frames * 1000) / (now - this.lastFpsTime));
+        this.frames = 0;
+        this.lastFpsTime = now;
+      }
     });
   }
 
   private createGrid(): THREE.Group {
     const group = new THREE.Group();
+
     const grid = new THREE.GridHelper(20, 20, GRID_CENTER_COLOR, GRID_COLOR);
-    (grid.material as THREE.Material).transparent = true;
-    (grid.material as THREE.Material).opacity = 0.6;
+    const mat = grid.material as THREE.LineBasicMaterial;
+    mat.transparent = true;
+    mat.opacity = 0.9;
+    // Without this ACES tone mapping darkened the lines so far that a
+    // bright model next to them made the grid disappear.
+    mat.toneMapped = false;
+    // Repaint the two center lines through the origin: X red, Z green
+    // (Blender's ground plane axes). For GridHelper(20, 20) the line
+    // block i occupies vertices 4i..4i+3: 4i/4i+1 are the line along X,
+    // 4i+2/4i+3 the line along Z, so the center block starts at 4*10.
+    const colors = grid.geometry.getAttribute("color") as THREE.BufferAttribute;
+    const red = new THREE.Color(AXIS_X_COLOR);
+    const green = new THREE.Color(AXIS_Z_COLOR);
+    for (const v of [40, 41]) colors.setXYZ(v, red.r, red.g, red.b);
+    for (const v of [42, 43]) colors.setXYZ(v, green.r, green.g, green.b);
     group.add(grid);
-    group.add(new THREE.AxesHelper(1));
+
+    // The vertical axis helper with Blender colors: our Y (up) is blue
+    // and our Z is green, drawn as lines through the origin.
+    const axisLine = (dir: THREE.Vector3, color: number): THREE.Line => {
+      const geo = new THREE.BufferGeometry().setFromPoints([
+        dir.clone().multiplyScalar(-1),
+        dir.clone(),
+      ]);
+      return new THREE.Line(
+        geo,
+        new THREE.LineBasicMaterial({ color, toneMapped: false }),
+      );
+    };
+    group.add(axisLine(new THREE.Vector3(1, 0, 0), AXIS_X_COLOR));
+    group.add(axisLine(new THREE.Vector3(0, 1, 0), AXIS_Y_COLOR));
+    group.add(axisLine(new THREE.Vector3(0, 0, 1), AXIS_Z_COLOR));
     return group;
   }
 

@@ -9,6 +9,7 @@ export const DEFAULTS = {
   },
   window: {
     launchMaximized: false,
+    alwaysOnTop: false,
   },
   general: {
     language: "english",

@@ -45,6 +45,7 @@ export const ENGLISH: Record<string, string> = {
 
   "settings.title": "Settings",
   "settings.launchMaximized": "Launch maximized window",
+  "settings.alwaysOnTop": "Always on top",
   "settings.hotkeys": "Hotkeys",
   "settings.language": "Language",
   "settings.languageHint":

@@ -294,6 +294,8 @@ function assignHotkeyCombo(combo: string): void {
 function showSettings(): void {
   const launchMaximized = document.getElementById("set-launch-maximized") as HTMLInputElement;
   launchMaximized.checked = settings.window.launchMaximized;
+  const alwaysOnTop = document.getElementById("set-always-on-top") as HTMLInputElement;
+  alwaysOnTop.checked = settings.window.alwaysOnTop;
   renderHotkeyRows();
   void populateLanguages();
   settingsDialog.showModal();
@@ -393,6 +395,26 @@ document.getElementById("plugins-close")!.addEventListener("click", () => plugin
 document.getElementById("set-launch-maximized")!.addEventListener("change", (e) => {
   setSetting("window", "launchMaximized", (e.target as HTMLInputElement).checked);
 });
+
+document.getElementById("set-always-on-top")!.addEventListener("change", async (e) => {
+  const on = (e.target as HTMLInputElement).checked;
+  setSetting("window", "alwaysOnTop", on);
+  // Apply immediately, not only on the next launch.
+  if ("__TAURI_INTERNALS__" in window) {
+    try {
+      const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      await getCurrentWindow().setAlwaysOnTop(on);
+    } catch (err) {
+      console.warn("Could not toggle always on top", err);
+    }
+  }
+});
+
+// Status bar FPS, refreshed twice a second from the render loop counter.
+const fpsEl = document.getElementById("status-fps")!;
+setInterval(() => {
+  fpsEl.textContent = `${viewer.fps} fps`;
+}, 500);
 
 document.getElementById("hotkeys-reset")!.addEventListener("click", () => {
   Object.assign(settings.hotkeys, structuredClone(DEFAULTS.hotkeys));
@@ -677,19 +699,19 @@ window.addEventListener("keydown", (e) => {
       return;
     case "Numpad4":
       e.preventDefault();
-      viewer.orbitView(-15, 0);
+      viewer.orbitView(-5, 0);
       return;
     case "Numpad6":
       e.preventDefault();
-      viewer.orbitView(15, 0);
+      viewer.orbitView(5, 0);
       return;
     case "Numpad8":
       e.preventDefault();
-      viewer.orbitView(0, 15);
+      viewer.orbitView(0, 5);
       return;
     case "Numpad2":
       e.preventDefault();
-      viewer.orbitView(0, -15);
+      viewer.orbitView(0, -5);
       return;
     case "NumpadAdd":
       e.preventDefault();
