@@ -14,6 +14,7 @@ export const ENGLISH: Record<string, string> = {
   "menu.view": "View",
   "menu.tools": "Tools",
   "menu.open": "Open…",
+  "menu.quit": "Quit",
   "menu.grid": "Grid",
   "menu.wireframe": "Wireframe",
   "menu.resetView": "Reset view",
@@ -28,6 +29,7 @@ export const ENGLISH: Record<string, string> = {
   "status.noModel": "No model loaded",
   "status.loading": "Loading…",
   "status.loadingModel": "Loading {name}…",
+  "status.parsing": "Parsing {name} — this can take a while for very large models…",
   "status.unsupported": "Unsupported file: {name}",
 
   "drop.hint": "Drop model file here",
@@ -45,8 +47,10 @@ export const ENGLISH: Record<string, string> = {
   "hotkeys.resetView": "Reset view",
   "hotkeys.fullscreen": "Full screen",
   "hotkeys.interface": "Interface",
+  "hotkeys.quit": "Quit",
   "hotkeys.pressKey": "Press a key…",
-  "hotkeys.title": "Click, then press the new key combination (Esc cancels)",
+  "hotkeys.title": "Click, then press the new key or mouse button (Esc cancels, Backspace clears)",
+  "hotkeys.capture": "Press a key or mouse button — Esc to cancel, Backspace to clear",
   "hotkeys.reset": "Reset hotkeys",
 
   "plugins.title": "Plugins",

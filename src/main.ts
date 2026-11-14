@@ -83,6 +83,15 @@ async function toggleFullscreen(): Promise<void> {
   }
 }
 
+async function quitApp(): Promise<void> {
+  if ("__TAURI_INTERNALS__" in window) {
+    const { getCurrentWindow } = await import("@tauri-apps/api/window");
+    await getCurrentWindow().close();
+  } else {
+    window.close();
+  }
+}
+
 let uiHidden = false;
 
 /** View > Interface (hotkey H): hide the whole UI, leaving only the 3D
@@ -105,6 +114,7 @@ const HOTKEY_ACTIONS: { key: HotkeyKey; label: () => string; run: () => void }[]
   { key: "reset", label: () => t("hotkeys.resetView"), run: () => viewer.frameModel(true) },
   { key: "fullscreen", label: () => t("hotkeys.fullscreen"), run: () => void toggleFullscreen() },
   { key: "interface", label: () => t("hotkeys.interface"), run: toggleInterface },
+  { key: "quit", label: () => t("hotkeys.quit"), run: () => void quitApp() },
 ];
 
 /** Keys that never form a combination on their own. */
@@ -162,6 +172,17 @@ const hotkeysRows = document.getElementById("hotkeys-rows")!;
  * combination; Escape cancels the capture. */
 let hotkeyCapture: { key: HotkeyKey; btn: HTMLButtonElement } | null = null;
 
+// While a modal dialog is open, everything outside it is inert: WebView2
+// never delivers mouse presses made over the viewport. So during a capture
+// the dialog is closed and a full-screen overlay shows instead - after
+// that keys AND mouse buttons can be captured anywhere.
+let captureDialogWasOpen = false;
+const captureOverlay = document.createElement("div");
+captureOverlay.id = "capture-overlay";
+captureOverlay.hidden = true;
+captureOverlay.innerHTML = `<div class="capture-box" id="capture-text"></div>`;
+document.body.appendChild(captureOverlay);
+
 function renderHotkeyRows(): void {
   hotkeysRows.replaceChildren();
   for (const action of HOTKEY_ACTIONS) {
@@ -186,6 +207,13 @@ function renderHotkeyRows(): void {
       hotkeyCapture = { key: action.key, btn };
       btn.classList.add("capturing");
       btn.textContent = t("hotkeys.pressKey");
+      // Un-modal the dialog for the capture (see captureOverlay above).
+      if (settingsDialog.open) {
+        captureDialogWasOpen = true;
+        settingsDialog.close();
+      }
+      captureOverlay.querySelector("#capture-text")!.textContent = t("hotkeys.capture");
+      captureOverlay.hidden = false;
     };
     // Capture starts on mousedown (a mouse press must be bindable, and the
     // starting click itself must not be swallowed). The click event is only
@@ -205,6 +233,11 @@ function renderHotkeyRows(): void {
 
 function endHotkeyCapture(): void {
   hotkeyCapture = null;
+  captureOverlay.hidden = true;
+  if (captureDialogWasOpen) {
+    captureDialogWasOpen = false;
+    settingsDialog.showModal();
+  }
   renderHotkeyRows();
 }
 
@@ -268,14 +301,17 @@ languageSelect.addEventListener("change", () => {
 const menus: MenuDef[] = [
   {
     label: () => t("menu.file"),
-    items: [{ label: () => t("menu.open"), hint: () => settings.hotkeys.open, action: openFileDialog }],
+    items: [
+      { label: () => t("menu.open"), hint: () => settings.hotkeys.open, action: openFileDialog },
+      { label: () => t("menu.quit"), hint: () => settings.hotkeys.quit, action: () => void quitApp() },
+    ],
   },
   {
     label: () => t("menu.view"),
     items: [
+      { label: () => t("menu.resetView"), hint: () => settings.hotkeys.reset, action: () => viewer.frameModel(true) },
       { label: () => t("menu.grid"), hint: () => settings.hotkeys.grid, checked: () => viewer.gridVisible, action: toggleGrid },
       { label: () => t("menu.wireframe"), hint: () => settings.hotkeys.wireframe, checked: () => viewer.wireframeOn, action: toggleWireframe },
-      { label: () => t("menu.resetView"), hint: () => settings.hotkeys.reset, action: () => viewer.frameModel(true) },
       { label: () => t("menu.fullscreen"), hint: () => settings.hotkeys.fullscreen, checked: () => fullscreenOn, action: () => void toggleFullscreen() },
       { label: () => t("menu.interface"), hint: () => settings.hotkeys.interface, checked: () => !uiHidden, action: toggleInterface },
     ],
@@ -397,16 +433,52 @@ async function openPath(path: string): Promise<void> {
     // Sidecar textures (FBX/OBJ) resolve relative to the model's folder,
     // so the base must be known before parsing starts.
     setResourceBase(convertFileSrc(dirname(path)));
-    const buffer = await res.arrayBuffer();
+    const buffer = await readBodyWithProgress(res, (p) =>
+      setLoading(true, t("status.loadingModel", { name }), p),
+    );
     await loadModel(buffer, name);
   } catch (err) {
     handleLoadError(err, name);
   }
 }
 
+/** Reads the response body chunk by chunk so huge files show real read
+ * progress instead of a frozen bar; falls back to arrayBuffer() when
+ * streaming is unavailable. */
+async function readBodyWithProgress(
+  res: Response,
+  onProgress: (p: number) => void,
+): Promise<ArrayBuffer> {
+  const total = Number(res.headers.get("Content-Length") ?? 0);
+  if (!res.body || !total) return res.arrayBuffer();
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    received += value.length;
+    onProgress(received / total);
+  }
+  const buffer = new Uint8Array(received);
+  let offset = 0;
+  for (const chunk of chunks) {
+    buffer.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return buffer.buffer;
+}
+
 async function loadModel(buffer: ArrayBuffer, name: string): Promise<void> {
   const seq = ++loadingSeq;
-  setLoading(true, `Loading ${name}…`, 1);
+  // Parsing has no progress events; for very large files say so explicitly,
+  // otherwise a long parse looks like a hang.
+  const parsingText =
+    buffer.byteLength > 50 * 1024 * 1024
+      ? t("status.parsing", { name })
+      : t("status.loadingModel", { name });
+  setLoading(true, parsingText, 1);
 
   try {
     const result = await loadFromArrayBuffer(buffer, name);

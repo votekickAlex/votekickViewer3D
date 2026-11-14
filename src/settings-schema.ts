@@ -20,5 +20,6 @@ export const DEFAULTS = {
     reset: "R",
     fullscreen: "F",
     interface: "H",
+    quit: "Q",
   },
 };
