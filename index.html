@@ -29,39 +29,54 @@
     <input type="file" id="file-input" hidden />
 
     <dialog id="settings-dialog">
-      <div class="dialog-head">
-        <span class="dialog-icon" data-icon="cog-loop" aria-hidden="true"></span>
-        <h2 data-i18n="settings.title">Settings</h2>
-      </div>
-      <label class="setting-row">
-        <input type="checkbox" id="set-launch-maximized" />
-        <span data-i18n="settings.launchMaximized">Launch maximized window</span>
-      </label>
-      <label class="setting-row">
-        <input type="checkbox" id="set-always-on-top" />
-        <span data-i18n="settings.alwaysOnTop">Always on top</span>
-      </label>
-      <h3 data-i18n="settings.colors">Colors</h3>
-      <label class="setting-row setting-color">
-        <button type="button" class="color-swatch" id="set-grid-color"></button>
-        <span data-i18n="settings.gridColor">Grid</span>
-      </label>
-      <label class="setting-row setting-color">
-        <button type="button" class="color-swatch" id="set-wireframe-color"></button>
-        <span data-i18n="settings.wireframeColor">Wireframe</span>
-      </label>
-      <label class="setting-row setting-color">
-        <button type="button" class="color-swatch" id="set-bbox-color"></button>
-        <span data-i18n="settings.bboxColor">Bounding box</span>
-      </label>
-      <h3 data-i18n="settings.language">Language</h3>
-      <select id="set-language" class="setting-select"></select>
-      <p class="dialog-note" data-i18n="settings.languageHint">Custom language: export english.json, copy it, translate, rename to your language and put it back into the lang folder - it appears in this list.</p>
-      <h3 data-i18n="settings.hotkeys">Hotkeys</h3>
-      <div id="hotkeys-rows"></div>
-      <div class="dialog-actions">
-        <button id="hotkeys-reset" data-i18n="hotkeys.reset">Reset hotkeys</button>
-        <button id="settings-close" data-i18n="dialog.close">Close</button>
+      <div class="settings-shell">
+        <div class="settings-titlebar">
+          <button type="button" class="settings-close" id="settings-close" data-icon="close-small" aria-label="Close" data-i18n-title="dialog.close"></button>
+          <h2 data-i18n="settings.title">Settings</h2>
+        </div>
+        <nav class="settings-nav">
+          <button type="button" class="settings-cat active" data-cat="general" data-i18n="settings.catGeneral">General</button>
+          <button type="button" class="settings-cat" data-cat="colors" data-i18n="settings.catColors">Colors</button>
+          <button type="button" class="settings-cat" data-cat="hotkeys" data-i18n="settings.catHotkeys">Hotkeys</button>
+        </nav>
+        <div class="settings-content">
+          <section class="settings-pane" data-cat="general">
+            <h3 data-i18n="settings.window">Window</h3>
+            <label class="setting-row">
+              <input type="checkbox" id="set-launch-maximized" />
+              <span data-i18n="settings.launchMaximized">Launch maximized window</span>
+            </label>
+            <label class="setting-row">
+              <input type="checkbox" id="set-always-on-top" />
+              <span data-i18n="settings.alwaysOnTop">Always on top</span>
+            </label>
+            <h3 data-i18n="settings.language">Language</h3>
+            <select id="set-language" class="setting-select"></select>
+            <p class="dialog-note" data-i18n="settings.languageHint">Custom language: export english.json, copy it, translate, rename to your language and put it back into the lang folder - it appears in this list.</p>
+          </section>
+          <section class="settings-pane" data-cat="colors" hidden>
+            <h3 data-i18n="settings.colors">Colors</h3>
+            <label class="setting-row setting-color">
+              <button type="button" class="color-swatch" id="set-grid-color"></button>
+              <span data-i18n="settings.gridColor">Grid</span>
+            </label>
+            <label class="setting-row setting-color">
+              <button type="button" class="color-swatch" id="set-wireframe-color"></button>
+              <span data-i18n="settings.wireframeColor">Wireframe</span>
+            </label>
+            <label class="setting-row setting-color">
+              <button type="button" class="color-swatch" id="set-bbox-color"></button>
+              <span data-i18n="settings.bboxColor">Bounding box</span>
+            </label>
+          </section>
+          <section class="settings-pane" data-cat="hotkeys" hidden>
+            <h3 data-i18n="settings.hotkeys">Hotkeys</h3>
+            <div id="hotkeys-rows"></div>
+            <div class="dialog-actions">
+              <button id="hotkeys-reset" data-i18n="hotkeys.reset">Reset hotkeys</button>
+            </div>
+          </section>
+        </div>
       </div>
     </dialog>
 
@@ -86,7 +101,7 @@
             <span data-i18n="picker.new">New</span><span id="cp-new" class="cp-swatch"></span>
             <span data-i18n="picker.current">Current</span><span id="cp-current" class="cp-swatch"></span>
           </div>
-          <button type="button" id="cp-eyedropper" data-i18n="picker.eyedropper">Pick screen color</button>
+          <button type="button" class="icon-button" id="cp-eyedropper" data-icon="paint-drop-filled" aria-label="Pick screen color" data-i18n-title="picker.eyedropper"></button>
         </div>
       </div>
       <h3 data-i18n="picker.recent">Recent colors</h3>

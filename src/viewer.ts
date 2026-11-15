@@ -10,6 +10,11 @@ const DEFAULT_BBOX_COLOR = "#4f9cf9";
 const DEFAULT_WIREFRAME_COLOR = "#ffffff";
 const UP = new THREE.Vector3(0, 1, 0);
 
+/** Small margin added when fitting the bounding box to the viewport, so
+ * the box edges do not touch the screen border ("bbox plus a few
+ * pixels"). */
+const FIT_MARGIN = 1.04;
+
 /** Parses "#rrggbb" or "#rrggbbaa"; the optional trailing pair becomes an
  * opacity factor for the line materials. */
 function parseHexColor(hex: string): { color: THREE.Color; alpha: number } {
@@ -197,23 +202,45 @@ export class Viewer {
     const maxDim = Math.max(size.x, size.y, size.z);
     if (!isFinite(maxDim) || maxDim === 0) return;
 
-    // Fit the bounding sphere into view for both the vertical and the
-    // (usually wider) horizontal field of view.
-    const sphere = box.getBoundingSphere(new THREE.Sphere());
-    const fovV = THREE.MathUtils.degToRad(this.camera.fov);
-    const fovH = 2 * Math.atan(Math.tan(fovV / 2) * this.camera.aspect);
-    const fov = Math.min(fovV, fovH);
-    const distance = (sphere.radius / Math.sin(fov / 2)) * 1.15;
-
     // Reset view returns to the canonical angle; otherwise keep the
     // current camera direction and just move to the fitting distance.
     const dir = this.camera.position.clone().sub(this.controls.target);
     if (resetAngle || dir.lengthSq() < 1e-6) dir.set(3, 2, 4);
+    dir.normalize();
+
+    // Fit the actual bounding box into the viewport instead of its
+    // bounding sphere: the sphere wastes space on flat or elongated
+    // models. Every box corner must stay inside both half angles; with
+    // the camera at distance D from the center, a corner c (depth z
+    // toward the camera, screen offsets cx, cy) needs
+    // D >= z + max(cx / tanH, cy / tanV).
+    const right = new THREE.Vector3().crossVectors(dir, this.camera.up).normalize();
+    const up = new THREE.Vector3().crossVectors(right, dir).normalize();
+    const tanV = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
+    const tanH = tanV * this.camera.aspect;
+    const aspect = this.camera.aspect;
+    let distance = 0;
+    let orthoHalfH = 0;
+    const corner = new THREE.Vector3();
+    for (let i = 0; i < 8; i++) {
+      corner.set(
+        i & 1 ? box.max.x : box.min.x,
+        i & 2 ? box.max.y : box.min.y,
+        i & 4 ? box.max.z : box.min.z,
+      ).sub(center);
+      const z = corner.dot(dir);
+      const cx = Math.abs(corner.dot(right));
+      const cy = Math.abs(corner.dot(up));
+      distance = Math.max(distance, z + Math.max(cx / tanH, cy / tanV));
+      orthoHalfH = Math.max(orthoHalfH, cy, cx / aspect);
+    }
+    distance *= FIT_MARGIN;
+    orthoHalfH *= FIT_MARGIN;
 
     this.controls.target.copy(center);
     const cam = this.activeCamera;
     cam.up.set(0, 1, 0);
-    cam.position.copy(center).addScaledVector(dir.normalize(), distance);
+    cam.position.copy(center).addScaledVector(dir, distance);
 
     // Dynamic near/far so huge and tiny models both render correctly.
     this.camera.near = Math.max(maxDim / 1000, 0.001);
@@ -228,7 +255,7 @@ export class Viewer {
       // camera by scaling camera.zoom instead of moving it, and the old
       // factor would keep the model at its previous on-screen size.
       this.orthoCamera.zoom = 1;
-      this.orthoHalfH = Math.tan(fov / 2) * distance;
+      this.orthoHalfH = orthoHalfH;
       this.updateOrthoFrustum();
     }
     this.controls.update();

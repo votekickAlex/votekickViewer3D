@@ -8,6 +8,7 @@ import { createMenuBar, type MenuDef } from "./menu";
 import { currentLanguage, englishTemplate, setLanguage, t } from "./i18n";
 import { iconSvg } from "./icons";
 import { openColorPicker } from "./colorpicker";
+import "./tooltip";
 import { version as APP_VERSION } from "../package.json";
 
 const APP_TITLE = "!votekickViewer3D";
@@ -116,7 +117,7 @@ function refreshStatusIcons(): void {
   }
   const proj = document.getElementById("st-proj");
   if (proj) {
-    proj.textContent = viewer.orthographic ? "Ortho" : "Persp";
+    proj.textContent = viewer.orthographic ? "Orthographic" : "Perspective";
     proj.title = t("menu.orthographic");
   }
 }
@@ -417,6 +418,19 @@ refreshStatusIcons();
 document.getElementById("status-version")!.textContent = `v${APP_VERSION}`;
 
 document.getElementById("settings-close")!.addEventListener("click", () => settingsDialog.close());
+
+// Settings categories (macOS style sidebar): one visible pane at a time.
+for (const catButton of settingsDialog.querySelectorAll<HTMLButtonElement>(".settings-cat")) {
+  catButton.addEventListener("click", () => {
+    const cat = catButton.dataset.cat!;
+    for (const other of settingsDialog.querySelectorAll(".settings-cat")) {
+      other.classList.toggle("active", other === catButton);
+    }
+    for (const pane of settingsDialog.querySelectorAll<HTMLElement>(".settings-pane")) {
+      pane.hidden = pane.dataset.cat !== cat;
+    }
+  });
+}
 document.getElementById("plugins-close")!.addEventListener("click", () => pluginsDialog.close());
 
 document.getElementById("set-launch-maximized")!.addEventListener("change", (e) => {

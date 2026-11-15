@@ -44,6 +44,10 @@ export const ENGLISH: Record<string, string> = {
   "drop.hint": "Drop model file here",
 
   "settings.title": "Settings",
+  "settings.catGeneral": "General",
+  "settings.catColors": "Colors",
+  "settings.catHotkeys": "Hotkeys",
+  "settings.window": "Window",
   "settings.launchMaximized": "Launch maximized window",
   "settings.alwaysOnTop": "Always on top",
   "settings.colors": "Colors",
