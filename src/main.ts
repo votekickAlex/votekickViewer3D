@@ -7,6 +7,7 @@ import { DEFAULTS } from "./settings-schema";
 import { createMenuBar, type MenuDef } from "./menu";
 import { currentLanguage, englishTemplate, setLanguage, t } from "./i18n";
 import { iconSvg } from "./icons";
+import { openColorPicker } from "./colorpicker";
 import { version as APP_VERSION } from "../package.json";
 
 const APP_TITLE = "!votekickViewer3D";
@@ -43,6 +44,7 @@ window.addEventListener("contextmenu", (e) => e.preventDefault());
 await loadSettings();
 viewer.setGridVisible(settings.view.grid);
 viewer.setWireframe(settings.view.wireframe);
+viewer.setBBoxVisible(settings.view.bbox);
 viewer.setGridColor(settings.view.gridColor);
 viewer.setWireframeColor(settings.view.wireframeColor);
 viewer.setBBoxColor(settings.view.bboxColor);
@@ -72,6 +74,13 @@ function toggleWireframe(): void {
 /** View > Bounding box (hotkey B): cube edges around the whole model. */
 function toggleBBox(): void {
   viewer.setBBoxVisible(!viewer.bboxVisible);
+  setSetting("view", "bbox", viewer.bboxVisible);
+  refreshStatusIcons();
+}
+
+/** Num 5 / View > Orthographic: projection toggle with a status badge. */
+function toggleOrtho(): void {
+  viewer.setOrthographic(!viewer.orthographic);
   refreshStatusIcons();
 }
 
@@ -104,6 +113,11 @@ function refreshStatusIcons(): void {
     if (!el) continue;
     el.classList.toggle("on", on());
     el.title = title();
+  }
+  const proj = document.getElementById("st-proj");
+  if (proj) {
+    proj.textContent = viewer.orthographic ? "Ortho" : "Persp";
+    proj.title = t("menu.orthographic");
   }
 }
 
@@ -303,9 +317,12 @@ function showSettings(): void {
   launchMaximized.checked = settings.window.launchMaximized;
   const alwaysOnTop = document.getElementById("set-always-on-top") as HTMLInputElement;
   alwaysOnTop.checked = settings.window.alwaysOnTop;
-  (document.getElementById("set-grid-color") as HTMLInputElement).value = settings.view.gridColor;
-  (document.getElementById("set-wireframe-color") as HTMLInputElement).value = settings.view.wireframeColor;
-  (document.getElementById("set-bbox-color") as HTMLInputElement).value = settings.view.bboxColor;
+  for (const id of ["set-grid-color", "set-wireframe-color", "set-bbox-color"]) {
+    const key = id.replace("set-", "").replace("-color", "Color") as
+      | "gridColor" | "wireframeColor" | "bboxColor";
+    (document.getElementById(id) as HTMLButtonElement).style.background =
+      settings.view[key];
+  }
   renderHotkeyRows();
   void populateLanguages();
   settingsDialog.showModal();
@@ -362,7 +379,7 @@ const menus: MenuDef[] = [
     icon: "image",
     items: [
       { label: () => t("menu.resetView"), hint: () => settings.hotkeys.reset, icon: "compass", action: () => viewer.frameModel(true) },
-      { label: () => t("menu.orthographic"), hint: "Num 5", checked: () => viewer.orthographic, action: () => viewer.setOrthographic(!viewer.orthographic) },
+      { label: () => t("menu.orthographic"), hint: "Num 5", checked: () => viewer.orthographic, action: toggleOrtho },
       { separator: true },
       { label: () => t("menu.front"), hint: "Num 1", action: () => viewer.setViewPreset("front") },
       { label: () => t("menu.back"), hint: "Ctrl+Num 1", action: () => viewer.setViewPreset("back") },
@@ -426,24 +443,31 @@ setInterval(() => {
   fpsEl.textContent = `${viewer.fps} fps`;
 }, 500);
 
-// Viewport colors (Settings > Colors): persisted and applied live.
-document.getElementById("set-grid-color")!.addEventListener("input", (e) => {
-  const value = (e.target as HTMLInputElement).value;
-  setSetting("view", "gridColor", value);
-  viewer.setGridColor(value);
-});
+// Viewport colors (Settings > Colors): a ShareX style picker per row,
+// persisted and applied on OK.
+const COLOR_ROWS: { id: string; key: "gridColor" | "wireframeColor" | "bboxColor"; apply: (hex: string) => void }[] = [
+  { id: "set-grid-color", key: "gridColor", apply: (hex) => viewer.setGridColor(hex) },
+  { id: "set-wireframe-color", key: "wireframeColor", apply: (hex) => viewer.setWireframeColor(hex) },
+  { id: "set-bbox-color", key: "bboxColor", apply: (hex) => viewer.setBBoxColor(hex) },
+];
 
-document.getElementById("set-wireframe-color")!.addEventListener("input", (e) => {
-  const value = (e.target as HTMLInputElement).value;
-  setSetting("view", "wireframeColor", value);
-  viewer.setWireframeColor(value);
-});
-
-document.getElementById("set-bbox-color")!.addEventListener("input", (e) => {
-  const value = (e.target as HTMLInputElement).value;
-  setSetting("view", "bboxColor", value);
-  viewer.setBBoxColor(value);
-});
+for (const row of COLOR_ROWS) {
+  document.getElementById(row.id)!.addEventListener("click", async () => {
+    const hex = await openColorPicker(settings.view[row.key], settings.general.recentColors);
+    if (hex === null) return;
+    setSetting("view", row.key, hex);
+    row.apply(hex);
+    (document.getElementById(row.id) as HTMLButtonElement).style.background = hex;
+    // The picker keeps its own recent list; mirror the chosen color into
+    // the persisted one (opaque, deduped, newest first).
+    const short = hex.slice(0, 7);
+    const recent = [
+      short,
+      ...settings.general.recentColors.filter((c) => c.toLowerCase() !== short.toLowerCase()),
+    ].slice(0, 12);
+    setSetting("general", "recentColors", recent);
+  });
+}
 
 document.getElementById("hotkeys-reset")!.addEventListener("click", () => {
   Object.assign(settings.hotkeys, structuredClone(DEFAULTS.hotkeys));
@@ -724,7 +748,7 @@ window.addEventListener("keydown", (e) => {
       return;
     case "Numpad5":
       e.preventDefault();
-      viewer.setOrthographic(!viewer.orthographic);
+      toggleOrtho();
       return;
     case "Numpad4":
       e.preventDefault();

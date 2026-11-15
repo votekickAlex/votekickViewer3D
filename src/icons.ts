@@ -22,6 +22,7 @@ import file from "./icons/line-md/file.svg?raw";
 import image from "./icons/line-md/image.svg?raw";
 import construction from "./icons/line-md/construction.svg?raw";
 import square from "./icons/line-md/square.svg?raw";
+import paintDrop from "./icons/line-md/paint-drop.svg?raw";
 
 const ICONS: Record<string, string> = {
   "folder-arrow-right": folderArrowRight,
@@ -40,6 +41,7 @@ const ICONS: Record<string, string> = {
   image,
   construction,
   square,
+  "paint-drop": paintDrop,
 };
 
 /** Raw SVG markup for a named icon, or an empty string for an unknown

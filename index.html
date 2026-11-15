@@ -16,6 +16,7 @@
         <span class="status-icon" id="st-wireframe" data-icon="hash"></span>
         <span class="status-icon" id="st-bbox" data-icon="square"></span>
         <span class="status-icon" id="st-fullscreen" data-icon="arrows-diagonal"></span>
+        <span id="st-proj"></span>
         <span id="status-fps"></span>
         <span id="status-version"></span>
       </div>
@@ -42,15 +43,15 @@
       </label>
       <h3 data-i18n="settings.colors">Colors</h3>
       <label class="setting-row setting-color">
-        <input type="color" id="set-grid-color" />
+        <button type="button" class="color-swatch" id="set-grid-color"></button>
         <span data-i18n="settings.gridColor">Grid</span>
       </label>
       <label class="setting-row setting-color">
-        <input type="color" id="set-wireframe-color" />
+        <button type="button" class="color-swatch" id="set-wireframe-color"></button>
         <span data-i18n="settings.wireframeColor">Wireframe</span>
       </label>
       <label class="setting-row setting-color">
-        <input type="color" id="set-bbox-color" />
+        <button type="button" class="color-swatch" id="set-bbox-color"></button>
         <span data-i18n="settings.bboxColor">Bounding box</span>
       </label>
       <h3 data-i18n="settings.language">Language</h3>
@@ -61,6 +62,40 @@
       <div class="dialog-actions">
         <button id="hotkeys-reset" data-i18n="hotkeys.reset">Reset hotkeys</button>
         <button id="settings-close" data-i18n="dialog.close">Close</button>
+      </div>
+    </dialog>
+
+    <dialog id="color-dialog">
+      <div class="dialog-head">
+        <span class="dialog-icon" data-icon="paint-drop" aria-hidden="true"></span>
+        <h2 data-i18n="picker.title">Color picker</h2>
+      </div>
+      <div class="cp-grid">
+        <div class="cp-left">
+          <div id="cp-sv"><div id="cp-sv-cursor"></div></div>
+          <div id="cp-hue"><div id="cp-hue-cursor"></div></div>
+          <div id="cp-alpha"><div id="cp-alpha-cursor"></div></div>
+        </div>
+        <div class="cp-right">
+          <label class="cp-field"><span data-i18n="picker.red">Red</span><input type="number" id="cp-r" min="0" max="255" step="1" /></label>
+          <label class="cp-field"><span data-i18n="picker.green">Green</span><input type="number" id="cp-g" min="0" max="255" step="1" /></label>
+          <label class="cp-field"><span data-i18n="picker.blue">Blue</span><input type="number" id="cp-b" min="0" max="255" step="1" /></label>
+          <label class="cp-field"><span data-i18n="picker.alpha">Alpha</span><input type="number" id="cp-a" min="0" max="255" step="1" /></label>
+          <label class="cp-field"><span data-i18n="picker.hex">Hex</span><input type="text" id="cp-hex" maxlength="7" spellcheck="false" /></label>
+          <div class="cp-compare">
+            <span data-i18n="picker.new">New</span><span id="cp-new" class="cp-swatch"></span>
+            <span data-i18n="picker.current">Current</span><span id="cp-current" class="cp-swatch"></span>
+          </div>
+          <button type="button" id="cp-eyedropper" data-i18n="picker.eyedropper">Pick screen color</button>
+        </div>
+      </div>
+      <h3 data-i18n="picker.recent">Recent colors</h3>
+      <div id="cp-recent" class="cp-row"></div>
+      <h3 data-i18n="picker.standard">Standard colors</h3>
+      <div id="cp-standard" class="cp-row"></div>
+      <div class="dialog-actions">
+        <button id="cp-ok" data-i18n="picker.ok">OK</button>
+        <button id="cp-cancel" data-i18n="picker.cancel">Cancel</button>
       </div>
     </dialog>
 

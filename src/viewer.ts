@@ -4,11 +4,24 @@ import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment
 
 const BG_COLOR = 0x1c1f24;
 /** Fallback grid color; the persisted setting overrides it at startup. */
-const DEFAULT_GRID_COLOR = 0xb03a3a;
+const DEFAULT_GRID_COLOR = "#b03a3a";
 const GRID_CENTER_COLOR = 0x565d68;
-const DEFAULT_BBOX_COLOR = 0x4f9cf9;
-const DEFAULT_WIREFRAME_COLOR = 0xffffff;
+const DEFAULT_BBOX_COLOR = "#4f9cf9";
+const DEFAULT_WIREFRAME_COLOR = "#ffffff";
 const UP = new THREE.Vector3(0, 1, 0);
+
+/** Parses "#rrggbb" or "#rrggbbaa"; the optional trailing pair becomes an
+ * opacity factor for the line materials. */
+function parseHexColor(hex: string): { color: THREE.Color; alpha: number } {
+  const text = hex.replace("#", "").trim();
+  const color = new THREE.Color(`#${text.slice(0, 6).padEnd(6, "0")}`);
+  let alpha = 1;
+  if (text.length >= 8) {
+    alpha = parseInt(text.slice(6, 8), 16) / 255;
+    if (Number.isNaN(alpha)) alpha = 1;
+  }
+  return { color, alpha };
+}
 
 // Axis colors follow Blender: its X red, Y green, Z blue map onto our
 // Y-up scene as x red, y (up) blue, z green.
@@ -25,10 +38,12 @@ export class Viewer {
   private grid: THREE.Group;
   private modelRoot: THREE.Group;
   private wireframe = false;
-  /** Shared material for wireframe mode: one flat, user-colored look. */
+  /** Shared material for the wireframe overlay: one flat, user-colored
+   * look drawn on top of the intact solid model. */
   private wireframeMaterial: THREE.MeshBasicMaterial;
-  /** Original per-mesh materials, kept to restore when wireframe goes off. */
-  private originalMaterials = new Map<THREE.Mesh, THREE.Material | THREE.Material[]>();
+  /** Overlay meshes mirroring the model's meshes; they share geometry, so
+   * they are cheap and never disposed here. */
+  private wireOverlays: THREE.Mesh[] = [];
   private bbox: THREE.Box3;
   private bboxHelper: THREE.Box3Helper;
   private orthoCamera: THREE.OrthographicCamera;
@@ -94,6 +109,7 @@ export class Viewer {
       wireframe: true,
       toneMapped: false,
     });
+    this.applyHexAlpha(this.wireframeMaterial, DEFAULT_WIREFRAME_COLOR);
 
     new ResizeObserver(() => this.resize()).observe(container);
     this.resize();
@@ -110,16 +126,21 @@ export class Viewer {
     });
   }
 
-  private createGrid(gridColor: number): THREE.Group {
+  private createGrid(gridHex: string): THREE.Group {
     const group = new THREE.Group();
+    const { color, alpha } = parseHexColor(gridHex);
 
-    const grid = new THREE.GridHelper(20, 20, GRID_CENTER_COLOR, gridColor);
+    const grid = new THREE.GridHelper(20, 20, GRID_CENTER_COLOR, color.getHex());
     const mat = grid.material as THREE.LineBasicMaterial;
     // Fully opaque, depth test off and drawn last: the grid stays a solid
     // constant-color overlay on top of the model instead of hiding behind
     // it or bleeding through it.
     mat.depthTest = false;
     mat.toneMapped = false;
+    if (alpha < 1) {
+      mat.transparent = true;
+      mat.opacity = alpha;
+    }
     grid.renderOrder = 10;
     // Repaint the two center lines through the origin: X red, Z green
     // (Blender's ground plane axes). For GridHelper(20, 20) the line
@@ -233,19 +254,36 @@ export class Viewer {
       line.geometry.dispose();
       (line.material as THREE.Material).dispose();
     });
-    this.grid = this.createGrid(new THREE.Color(hex).getHex());
+    this.grid = this.createGrid(hex);
     this.grid.visible = visible;
     this.scene.add(this.grid);
   }
 
   /** Color of the flat wireframe overlay (Settings > Colors). */
   setWireframeColor(hex: string): void {
-    this.wireframeMaterial.color.set(hex);
+    this.wireframeMaterial.color = parseHexColor(hex).color;
+    this.applyHexAlpha(this.wireframeMaterial, hex);
   }
 
   /** Color of the bounding box edges (Settings > Colors). */
   setBBoxColor(hex: string): void {
-    (this.bboxHelper.material as THREE.LineBasicMaterial).color.set(hex);
+    const material = this.bboxHelper.material as THREE.LineBasicMaterial;
+    material.color = parseHexColor(hex).color;
+    this.applyHexAlpha(material, hex);
+  }
+
+  /** Applies the optional "#rrggbbaa" alpha pair as material opacity;
+   * fully opaque values render hard (no transparency pass). */
+  private applyHexAlpha(material: THREE.Material, hex: string): void {
+    const alpha = parseHexColor(hex).alpha;
+    if (alpha < 1) {
+      material.transparent = true;
+      material.opacity = alpha;
+    } else {
+      material.transparent = false;
+      material.opacity = 1;
+    }
+    material.needsUpdate = true;
   }
 
   // ---------- Blender-style views ----------
@@ -394,46 +432,50 @@ export class Viewer {
   }
 
   private applyWireframe(): void {
-    this.modelRoot.traverse((obj) => {
-      const mesh = obj as THREE.Mesh;
-      if (!mesh.isMesh) return;
-      if (this.wireframe) {
-        // Swap to the shared flat-colored wireframe material, keeping the
-        // original one to restore; a Map guards shared/duplicate visits.
-        if (!this.originalMaterials.has(mesh)) {
-          this.originalMaterials.set(mesh, mesh.material);
-        }
-        mesh.material = this.wireframeMaterial;
-      } else {
-        const original = this.originalMaterials.get(mesh);
-        if (original !== undefined) {
-          mesh.material = original;
-          this.originalMaterials.delete(mesh);
-        }
-      }
-    });
+    if (this.wireframe) {
+      // Add an overlay mesh as a child of every model mesh: it inherits
+      // the transform, shares the geometry (no copies) and draws its
+      // triangle edges on top of the intact solid surface. The flag keeps
+      // the traversal from recursing into the overlays themselves.
+      const overlays: THREE.Mesh[] = [];
+      this.modelRoot.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        if (!mesh.isMesh || (mesh.userData as { wireOverlay?: boolean }).wireOverlay) return;
+        const overlay = new THREE.Mesh(mesh.geometry, this.wireframeMaterial);
+        overlay.userData.wireOverlay = true;
+        overlay.renderOrder = 5;
+        mesh.add(overlay);
+        overlays.push(overlay);
+      });
+      this.wireOverlays = overlays;
+    } else {
+      for (const overlay of this.wireOverlays) overlay.removeFromParent();
+      this.wireOverlays = [];
+    }
   }
 
   private disposeModel(): void {
+    // Overlays share their geometry with the model meshes; dropping them
+    // first keeps the shared wireframe material alive and avoids double
+    // disposal.
+    for (const overlay of this.wireOverlays) overlay.removeFromParent();
+    this.wireOverlays = [];
     this.modelRoot.traverse((obj) => {
       const mesh = obj as THREE.Mesh;
-      if (mesh.isMesh) {
-        // Point back at the original materials so the originals (not the
-        // shared wireframe material) get disposed below.
-        const original = this.originalMaterials.get(mesh);
-        if (original !== undefined) mesh.material = original;
-        mesh.geometry?.dispose();
-        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-        for (const m of materials) {
-          if (!m) continue;
-          for (const value of Object.values(m)) {
-            if (value instanceof THREE.Texture) value.dispose();
-          }
-          m.dispose();
+      if (!mesh.isMesh) return;
+      // Overlays are visited too: their geometry belongs to the parent
+      // mesh and their material is shared, never dispose either.
+      if ((mesh.userData as { wireOverlay?: boolean }).wireOverlay) return;
+      mesh.geometry?.dispose();
+      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      for (const m of materials) {
+        if (!m) continue;
+        for (const value of Object.values(m)) {
+          if (value instanceof THREE.Texture) value.dispose();
         }
+        m.dispose();
       }
     });
-    this.originalMaterials.clear();
     this.modelRoot.clear();
   }
 

@@ -6,6 +6,7 @@ export const DEFAULTS = {
   view: {
     grid: true,
     wireframe: false,
+    bbox: false,
     gridColor: "#b03a3a",
     wireframeColor: "#ffffff",
     bboxColor: "#4f9cf9",
@@ -16,6 +17,7 @@ export const DEFAULTS = {
   },
   general: {
     language: "english",
+    recentColors: [] as string[],
   },
   hotkeys: {
     open: "O",

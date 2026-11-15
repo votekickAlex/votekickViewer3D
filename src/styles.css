@@ -213,9 +213,15 @@ button:focus-visible {
 }
 
 #status-fps,
-#status-version {
+#status-version,
+#st-proj {
   font-size: 11px;
   color: var(--text-dim);
+}
+
+#st-proj {
+  min-width: 34px;
+  text-align: right;
 }
 
 /* Interface hidden (View > Interface, hotkey H): only the 3D viewport
@@ -363,27 +369,157 @@ dialog h3 {
   cursor: pointer;
 }
 
-/* color pickers (Settings > Colors) */
+/* color swatch buttons (Settings > Colors) */
 
-.setting-color input[type="color"] {
+.color-swatch {
   appearance: none;
-  width: 34px;
+  width: 40px;
   height: 22px;
   padding: 0;
   border: 1px solid var(--border);
   border-radius: 4px;
-  background: none;
+  background: #888;
   cursor: pointer;
   flex: none;
 }
 
-.setting-color input[type="color"]::-webkit-color-swatch-wrapper {
-  padding: 2px;
+.color-swatch:hover {
+  border-color: var(--accent);
 }
 
-.setting-color input[type="color"]::-webkit-color-swatch {
-  border: none;
-  border-radius: 2px;
+/* ---------- color picker dialog ---------- */
+
+.cp-grid {
+  display: flex;
+  gap: 12px;
+}
+
+.cp-left {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 190px;
+  flex: none;
+}
+
+#cp-sv {
+  position: relative;
+  height: 150px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background-color: #f00;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+#cp-hue,
+#cp-alpha {
+  position: relative;
+  height: 14px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  touch-action: none;
+}
+
+#cp-hue {
+  background-image: linear-gradient(
+    to right,
+    #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%
+  );
+  cursor: ew-resize;
+}
+
+#cp-alpha {
+  cursor: ew-resize;
+}
+
+#cp-sv-cursor {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px #000, 0 0 3px rgb(0 0 0 / 0.7);
+  transform: translate(-6px, -6px);
+  pointer-events: none;
+}
+
+#cp-hue-cursor,
+#cp-alpha-cursor {
+  position: absolute;
+  top: 50%;
+  width: 8px;
+  height: 18px;
+  border: 2px solid #fff;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px #000;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.cp-right {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 150px;
+}
+
+.cp-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.cp-field input {
+  width: 70px;
+  appearance: auto;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+
+.cp-compare {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.cp-swatch {
+  width: 34px;
+  height: 22px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.cp-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.cp-chip {
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.cp-chip:hover {
+  border-color: var(--accent);
 }
 
 /* ---------- editable hotkey rows ---------- */
