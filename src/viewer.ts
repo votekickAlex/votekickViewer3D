@@ -227,8 +227,10 @@ export class Viewer {
     const visible = this.grid.visible;
     this.scene.remove(this.grid);
     this.grid.traverse((obj) => {
+      // The root Group itself has neither geometry nor material; skip it.
       const line = obj as THREE.Line;
-      line.geometry?.dispose();
+      if (!line.geometry || !line.material) return;
+      line.geometry.dispose();
       (line.material as THREE.Material).dispose();
     });
     this.grid = this.createGrid(new THREE.Color(hex).getHex());
