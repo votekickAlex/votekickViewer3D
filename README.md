@@ -41,15 +41,65 @@ Uninstalling is a standard Windows "Uninstall" - and the uninstaller's
 - Program: `C:\Program Files\votekickViewer3D`
 - Settings: `%APPDATA%\votekickViewer3D\cfg`
 - Cache: `%APPDATA%\votekickViewer3D\cache`
+- Translations: `%APPDATA%\votekickViewer3D\lang`
+- Load error log: `log.txt` next to the executable (AppData fallback when
+  that is not writable)
 
 ## Controls
 
-> **Work in progress** - the interface is actively being reworked; this
-> section will be finalized once the menu settles. Currently:
-> `G` grid · `F` wireframe · `R` reset view · `Ctrl+O` open file.
-
 Mouse: orbit / pan / zoom like any 3D viewer; a freshly opened model is
-auto-framed to fit the window.
+auto-framed to fit the window. You can also drop a file onto the window.
+
+The full list is always available in the app: `F1` or File > Help.
+
+### Keyboard
+
+| Key | Action |
+|---|---|
+| `O` | Open file |
+| `G` | Grid on/off |
+| `W` | Wireframe on/off |
+| `B` | Bounding box on/off |
+| `R` | Reset view: fits the model to the window, keeps the current angle |
+| `F` | Fullscreen |
+| `H` | Toggle interface (hides everything but the 3D viewport) |
+| `Q` | Quit |
+| `F1` | Help (all hotkeys) |
+
+Every binding is editable in Tools > Settings > Hotkeys, including mouse
+buttons (e.g. `Ctrl+Mouse Left`); `Esc` cancels the capture, `Backspace`
+clears it.
+
+### Numpad views (Blender style)
+
+Physical numpad keys, they work without NumLock. Axis views fit the model
+the same way reset view does.
+
+| Key | Action |
+|---|---|
+| `Num 1` / `Ctrl+Num 1` | Front / Back |
+| `Num 3` / `Ctrl+Num 3` | Right / Left |
+| `Num 7` / `Ctrl+Num 7` | Top / Bottom |
+| `Num 9` | Jump to the opposite side |
+| `Num 5` | Perspective / Orthographic toggle (keeps the on-screen scale) |
+| `Num 2` / `Num 4` / `Num 6` / `Num 8` | Orbit in 5 degree steps |
+| `Num +` / `Num -` | Zoom |
+
+The same commands are in the View menu.
+
+### Menu bar, settings and languages
+
+- **File**: Open, Help, Quit.
+- **View**: Reset view, Orthographic, the six axis views, Grid, Wireframe,
+  Bounding box, Fullscreen, Interface; toggles show their state with a
+  checkmark.
+- **Tools**: Settings, Plugins (a stub for a future plugin system).
+- **Settings** has three categories: General (launch maximized, always on
+  top, language), Colors (grid, wireframe, bounding box) and Hotkeys.
+- **Languages**: plain JSON files. On first launch
+  `english.json` is created in `%APPDATA%\votekickViewer3D\lang`; copy it,
+  translate, rename to your language, put it back and it appears in the
+  language list. Missing keys fall back to English.
 
 ## Building from source
 
