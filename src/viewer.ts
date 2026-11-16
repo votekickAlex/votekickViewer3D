@@ -199,6 +199,11 @@ export class Viewer {
     this.modelRoot.add(object);
     this.applyWireframe();
     this.refreshBBox();
+    // A fresh model starts from the canonical orientation: drop any roll
+    // a previous session left on the cameras (a top view yaw orbit spins
+    // the up vector, and frameModel would carry it over).
+    this.camera.up.set(0, 1, 0);
+    this.orthoCamera.up.set(0, 1, 0);
     this.frameModel(true);
   }
 
@@ -231,13 +236,16 @@ export class Viewer {
     // toward the camera, screen offsets cx, cy) needs
     // D >= z + max(cx / tanH, cy / tanV).
     // Camera basis for the fit constraints. It must match the orientation
-    // place() will produce (canonical up + lookAt), not the current
-    // camera roll: a stale up (e.g. (0,0,-1) left by the top view preset)
-    // would overestimate the corner offsets and make the zoom pass land
-    // short of the target span.
-    const upHint = Math.abs(dir.y) > 0.999
-      ? new THREE.Vector3(0, 0, dir.y > 0 ? -1 : 1)
-      : new THREE.Vector3(0, 1, 0);
+    // place() will produce, so the roll comes from the active camera's
+    // up vector: numpad yaw orbits spin that up in the top/bottom views
+    // (the direction is parallel to the orbit axis there) and reset view
+    // must keep the spun roll. A direction parallel to the up vector
+    // falls back to the Z convention shared with the view presets.
+    const activeUp = (this.orthoOn ? this.orthoCamera : this.camera).up;
+    const upHint = activeUp.clone().normalize();
+    if (Math.abs(upHint.dot(dir)) > 0.999) {
+      upHint.set(0, 0, dir.y > 0 ? -1 : 1);
+    }
     const right = new THREE.Vector3().crossVectors(upHint, dir).normalize();
     const up = new THREE.Vector3().crossVectors(dir, right).normalize();
     const tanV = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
@@ -682,16 +690,33 @@ export class Viewer {
     this.controls.target.copy(center);
     this.camera.position.copy(pos);
     this.orthoCamera.position.copy(pos);
+    // Canonical up per preset: +Y everywhere except the top/bottom views,
+    // where the Z fallback keeps the up vector from being parallel to
+    // the view direction. frameModel(false) picks this up as its fit
+    // basis and place() re-applies it to both cameras.
+    const presetUp = preset === "top" || preset === "bottom"
+      ? new THREE.Vector3(0, 0, -1)
+      : new THREE.Vector3(0, 1, 0);
+    this.camera.up.copy(presetUp);
+    this.orthoCamera.up.copy(presetUp);
     this.frameModel(false);
   }
 
   /** Orbits the camera around the target: yaw around world up, pitch
-   * around the view's horizontal (right) axis. Used by numpad 2/4/6/8. */
+   * around the view's horizontal (right) axis. Used by numpad 2/4/6/8.
+   * In the top/bottom views the direction is parallel to the orbit axis,
+   * so the yaw spins the camera roll instead, like Blender does. */
   orbitView(yawDeg: number, pitchDeg: number): void {
     const cam = this.activeCamera;
     const dir = cam.position.clone().sub(this.controls.target);
     if (dir.lengthSq() < 1e-12) return;
-    if (yawDeg !== 0) dir.applyAxisAngle(UP, THREE.MathUtils.degToRad(yawDeg));
+    if (yawDeg !== 0) {
+      if (Math.abs(dir.dot(UP)) / dir.length() > 0.999) {
+        cam.up.applyAxisAngle(UP, THREE.MathUtils.degToRad(yawDeg));
+      } else {
+        dir.applyAxisAngle(UP, THREE.MathUtils.degToRad(yawDeg));
+      }
+    }
     if (pitchDeg !== 0) {
       const right = new THREE.Vector3().crossVectors(dir, cam.up).normalize();
       if (right.lengthSq() > 1e-12) {
