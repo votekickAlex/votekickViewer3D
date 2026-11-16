@@ -114,16 +114,19 @@
     </dialog>
 
     <dialog id="help-dialog">
-      <div class="dialog-head">
-        <span class="dialog-icon" data-icon="question-circle" aria-hidden="true"></span>
-        <h2 data-i18n="help.title">Hotkeys</h2>
-      </div>
-      <h3 data-i18n="help.actions">Actions</h3>
-      <div id="help-actions" class="help-grid"></div>
-      <h3 data-i18n="help.views">Numpad views</h3>
-      <div id="help-views" class="help-grid"></div>
-      <div class="dialog-actions">
-        <button id="help-close" data-i18n="dialog.ok">OK</button>
+      <button type="button" class="settings-close" id="help-close-x" data-icon="close-small" aria-label="Close" data-i18n-title="dialog.close"></button>
+      <div class="help-scroll">
+        <div class="dialog-head">
+          <span class="dialog-icon" data-icon="question-circle" aria-hidden="true"></span>
+          <h2 data-i18n="help.title">Hotkeys</h2>
+        </div>
+        <h3 data-i18n="help.actions">Actions</h3>
+        <div id="help-actions" class="help-grid"></div>
+        <h3 data-i18n="help.views">Numpad views</h3>
+        <div id="help-views" class="help-grid"></div>
+        <div class="dialog-actions">
+          <button id="help-close" data-i18n="dialog.ok">OK</button>
+        </div>
       </div>
     </dialog>
 

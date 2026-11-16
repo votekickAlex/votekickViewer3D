@@ -499,6 +499,19 @@ dialog h3:first-child {
 
 /* ---------- help dialog (hotkey list) ---------- */
 
+/* The dialog keeps the close cross fixed at the top left (outside the
+ * scrolling wrapper), like the Settings dialog. */
+#help-dialog {
+  padding: 0;
+}
+
+.help-scroll {
+  overflow-y: auto;
+  max-height: min(70vh, 560px);
+  padding: 20px 24px;
+  box-sizing: border-box;
+}
+
 .help-grid {
   display: flex;
   flex-direction: column;

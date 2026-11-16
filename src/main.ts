@@ -171,7 +171,7 @@ const HOTKEY_ACTIONS: { key: HotkeyKey; label: () => string; run: () => void }[]
   { key: "grid", label: () => t("hotkeys.grid"), run: toggleGrid },
   { key: "wireframe", label: () => t("hotkeys.wireframe"), run: toggleWireframe },
   { key: "boundingBox", label: () => t("hotkeys.boundingBox"), run: toggleBBox },
-  { key: "reset", label: () => t("hotkeys.resetView"), run: () => viewer.frameModel(true) },
+  { key: "reset", label: () => t("hotkeys.resetView"), run: () => viewer.frameModel(false) },
   { key: "fullscreen", label: () => t("hotkeys.fullscreen"), run: () => void toggleFullscreen() },
   { key: "interface", label: () => t("hotkeys.interface"), run: toggleInterface },
   { key: "quit", label: () => t("hotkeys.quit"), run: () => void quitApp() },
@@ -358,6 +358,11 @@ function showHelp(): void {
     views.appendChild(helpRow(label, combo));
   }
   helpDialog.showModal();
+  // Open at the top: showModal focuses the close cross (the first
+  // control), but a leftover scroll from a previous visit must go too.
+  helpDialog.scrollTop = 0;
+  const scroller = helpDialog.querySelector<HTMLDivElement>(".help-scroll")!;
+  scroller.scrollTop = 0;
 }
 
 function helpRow(label: string, combo: string): HTMLElement {
@@ -415,7 +420,7 @@ const menus: MenuDef[] = [
     icon: "file",
     items: [
       { label: () => t("menu.open"), hint: () => settings.hotkeys.open, icon: "folder-arrow-right", action: openFileDialog },
-      { label: () => t("menu.help"), hint: "F1", action: showHelp },
+      { label: () => t("menu.help"), hint: "F1", icon: "question-circle", action: showHelp },
       { label: () => t("menu.quit"), hint: () => settings.hotkeys.quit, icon: "logout", action: () => void quitApp() },
     ],
   },
@@ -423,7 +428,7 @@ const menus: MenuDef[] = [
     label: () => t("menu.view"),
     icon: "image",
     items: [
-      { label: () => t("menu.resetView"), hint: () => settings.hotkeys.reset, icon: "compass", action: () => viewer.frameModel(true) },
+      { label: () => t("menu.resetView"), hint: () => settings.hotkeys.reset, icon: "compass", action: () => viewer.frameModel(false) },
       { label: () => t("menu.orthographic"), hint: "Num 5", checked: () => viewer.orthographic, action: toggleOrtho },
       { separator: true },
       { label: () => t("menu.front"), hint: "Num 1", action: () => viewer.setViewPreset("front") },
@@ -477,6 +482,7 @@ for (const catButton of settingsDialog.querySelectorAll<HTMLButtonElement>(".set
 }
 document.getElementById("plugins-close")!.addEventListener("click", () => pluginsDialog.close());
 document.getElementById("help-close")!.addEventListener("click", () => helpDialog.close());
+document.getElementById("help-close-x")!.addEventListener("click", () => helpDialog.close());
 
 document.getElementById("set-launch-maximized")!.addEventListener("change", (e) => {
   setSetting("window", "launchMaximized", (e.target as HTMLInputElement).checked);

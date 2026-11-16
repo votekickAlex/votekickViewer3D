@@ -253,14 +253,15 @@ export class Viewer {
     orthoHalfH *= FIT_MARGIN;
 
     /** Places both cameras along the view direction at `d` with the
-     * current ortho half height. The canonical up and a synchronous
-     * lookAt keep the camera matrices valid for the projections the
-     * fit loops read right after (no frame in between). */
+     * current ortho half height. The up vector matches the fit basis (a
+     * view direction parallel to Y needs the Z fallback) and the
+     * synchronous lookAt keeps the camera matrices valid for the
+     * projections the fit loops read right after (no frame in between). */
     const orthoFit = { halfH: orthoHalfH };
     const place = (d: number): void => {
       this.controls.target.copy(center);
-      this.camera.up.set(0, 1, 0);
-      this.orthoCamera.up.set(0, 1, 0);
+      this.camera.up.copy(upHint);
+      this.orthoCamera.up.copy(upHint);
       const pos = center.clone().addScaledVector(dir, d);
       this.camera.position.copy(pos);
       this.camera.lookAt(center);
@@ -642,8 +643,10 @@ export class Viewer {
 
   /** Canonical axis views. Front/Back look along Z, Left/Right along X,
    * Top/Bottom along Y; up is +Y except on Top/Bottom where +Z keeps the
-   * view direction and the up vector from being parallel. */
+   * view direction and the up vector from being parallel. Like reset
+   * view, the model is fitted to the viewport along the new direction. */
   setViewPreset(preset: "front" | "back" | "left" | "right" | "top" | "bottom"): void {
+    if (this.modelRoot.children.length === 0) return;
     const dirs: Record<typeof preset, [number, number, number]> = {
       front: [0, 0, 1],
       back: [0, 0, -1],
@@ -653,25 +656,22 @@ export class Viewer {
       bottom: [0, -1, 0],
     };
     const cam = this.activeCamera;
-    const dir = cam.position.clone().sub(this.controls.target);
-    const dist = dir.length() > 1e-6 ? dir.length() : 5;
-    cam.up.set(0, 1, 0);
-    if (preset === "top" || preset === "bottom") cam.up.set(0, 0, -1);
+    const old = cam.position.clone().sub(this.controls.target);
+    const dist = old.length() > 1e-6 ? old.length() : 5;
     // Anchor the preset to the model center: the orbit target may have
     // been shifted by the screen centering, which would throw the box
-    // off screen otherwise.
+    // off screen otherwise. Both cameras go onto the preset line, and
+    // frameModel(false) fits along it (it keeps the current direction).
     const presetDir = new THREE.Vector3(...dirs[preset]);
     const box = new THREE.Box3().setFromObject(this.modelRoot);
-    if (!box.isEmpty()) {
-      const center = box.getCenter(new THREE.Vector3());
-      this.controls.target.copy(center);
-      cam.position.copy(center).addScaledVector(presetDir, dist);
-      // Keep the inactive camera on the same line (frameModel places
-      // both cameras on the line through the center).
-      (this.orthoOn ? this.camera : this.orthoCamera).position.copy(cam.position);
-    }
-    this.controls.update();
-    this.centerProjection();
+    const center = box.isEmpty()
+      ? this.controls.target.clone()
+      : box.getCenter(new THREE.Vector3());
+    const pos = center.clone().addScaledVector(presetDir, dist);
+    this.controls.target.copy(center);
+    this.camera.position.copy(pos);
+    this.orthoCamera.position.copy(pos);
+    this.frameModel(false);
   }
 
   /** Orbits the camera around the target: yaw around world up, pitch
@@ -706,19 +706,22 @@ export class Viewer {
     this.controls.update();
   }
 
-  /** Numpad 9: jumps to the opposite side of the current view. */
+  /** Numpad 9: jumps to the opposite side of the current view and fits
+   * the model like reset view does. */
   flipView(): void {
+    if (this.modelRoot.children.length === 0) return;
     const cam = this.activeCamera;
     const dir = cam.position.clone().sub(this.controls.target);
     if (dir.lengthSq() < 1e-12) return;
-    // Flip around the model center so the box stays centered on screen.
+    // Flip around the model center so the box stays centered on screen;
+    // frameModel(false) fits along the mirrored direction.
     const box = new THREE.Box3().setFromObject(this.modelRoot);
     const pivot = box.isEmpty() ? this.controls.target.clone() : box.getCenter(new THREE.Vector3());
-    cam.position.copy(pivot).sub(dir);
+    const pos = pivot.clone().sub(dir);
     this.controls.target.copy(pivot);
-    (this.orthoOn ? this.camera : this.orthoCamera).position.copy(cam.position);
-    this.controls.update();
-    this.centerProjection();
+    this.camera.position.copy(pos);
+    this.orthoCamera.position.copy(pos);
+    this.frameModel(false);
   }
 
   get hasModel(): boolean {
