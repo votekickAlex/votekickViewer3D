@@ -481,7 +481,6 @@ for (const catButton of settingsDialog.querySelectorAll<HTMLButtonElement>(".set
   });
 }
 document.getElementById("plugins-close")!.addEventListener("click", () => pluginsDialog.close());
-document.getElementById("help-close")!.addEventListener("click", () => helpDialog.close());
 document.getElementById("help-close-x")!.addEventListener("click", () => helpDialog.close());
 
 document.getElementById("set-launch-maximized")!.addEventListener("change", (e) => {

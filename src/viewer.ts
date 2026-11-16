@@ -87,6 +87,17 @@ export class Viewer {
     this.controls.dampingFactor = 0.08;
     this.controls.screenSpacePanning = true;
 
+    // Orbiting and panning act on the active camera, while the fit reads
+    // the view direction from the perspective one: keep the inactive
+    // camera on the same line through the target, so an orthographic
+    // orbit followed by reset view fits along the rotated direction
+    // instead of the stale one.
+    this.controls.addEventListener("change", () => {
+      const dir = this.activeCamera.position.clone().sub(this.controls.target);
+      (this.orthoOn ? this.camera : this.orthoCamera).position
+        .copy(this.controls.target).add(dir);
+    });
+
     // Orthographic twin: the frustum is sized so a switch keeps the same
     // on-screen scale (see setOrthographic). controls.object is swapped
     // between the two cameras.

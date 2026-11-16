@@ -500,9 +500,14 @@ dialog h3:first-child {
 /* ---------- help dialog (hotkey list) ---------- */
 
 /* The dialog keeps the close cross fixed at the top left (outside the
- * scrolling wrapper), like the Settings dialog. */
+ * scrolling wrapper), like the Settings dialog; the title row is
+ * centered so it clears the cross. */
 #help-dialog {
   padding: 0;
+}
+
+#help-dialog .dialog-head {
+  justify-content: center;
 }
 
 .help-scroll {
