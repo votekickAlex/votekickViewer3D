@@ -22,7 +22,8 @@ fileInput.accept = SUPPORTED_EXTENSIONS.join(",");
 const settingsDialog = document.getElementById("settings-dialog") as HTMLDialogElement;
 const pluginsDialog = document.getElementById("plugins-dialog") as HTMLDialogElement;
 const aboutDialog = document.getElementById("about-dialog") as HTMLDialogElement;
-const ALL_DIALOGS = [settingsDialog, pluginsDialog, aboutDialog];
+const helpDialog = document.getElementById("help-dialog") as HTMLDialogElement;
+const ALL_DIALOGS = [settingsDialog, pluginsDialog, aboutDialog, helpDialog];
 const loadingOverlay = document.createElement("div");
 
 loadingOverlay.id = "loading";
@@ -118,7 +119,7 @@ function refreshStatusIcons(): void {
   const proj = document.getElementById("st-proj");
   if (proj) {
     proj.textContent = viewer.orthographic ? "Orthographic" : "Perspective";
-    proj.title = t("menu.orthographic");
+    proj.title = t("status.projection");
   }
 }
 
@@ -329,8 +330,50 @@ function showSettings(): void {
   settingsDialog.showModal();
 }
 
-// ---------- language ----------
+// ---------- Help dialog (File > Help, F1) ----------
 
+function showHelp(): void {
+  // Rebuilt on every open, so a language switch or an edited hotkey
+  // shows up the next time the dialog opens.
+  const actions = helpDialog.querySelector<HTMLDivElement>("#help-actions")!;
+  const views = helpDialog.querySelector<HTMLDivElement>("#help-views")!;
+  actions.replaceChildren();
+  for (const action of HOTKEY_ACTIONS) {
+    actions.appendChild(helpRow(action.label(), comboLabel(settings.hotkeys[action.key])));
+  }
+  views.replaceChildren();
+  const viewRows: [string, string][] = [
+    [t("menu.front"), "Num 1"],
+    [t("menu.back"), "Ctrl+Num 1"],
+    [t("menu.left"), "Ctrl+Num 3"],
+    [t("menu.right"), "Num 3"],
+    [t("menu.top"), "Num 7"],
+    [t("menu.bottom"), "Ctrl+Num 7"],
+    [t("help.flip"), "Num 9"],
+    [t("menu.orthographic"), "Num 5"],
+    [t("help.orbit"), "Num 2 / 4 / 6 / 8"],
+    [t("help.zoom"), "Num + / Num -"],
+  ];
+  for (const [label, combo] of viewRows) {
+    views.appendChild(helpRow(label, combo));
+  }
+  helpDialog.showModal();
+}
+
+function helpRow(label: string, combo: string): HTMLElement {
+  const row = document.createElement("div");
+  row.className = "help-row";
+  const name = document.createElement("span");
+  name.className = "help-name";
+  name.textContent = label;
+  const key = document.createElement("span");
+  key.className = "help-combo";
+  key.textContent = combo;
+  row.append(name, key);
+  return row;
+}
+
+// ---------- language ----------
 const languageSelect = document.getElementById("set-language") as HTMLSelectElement;
 
 async function populateLanguages(): Promise<void> {
@@ -372,6 +415,7 @@ const menus: MenuDef[] = [
     icon: "file",
     items: [
       { label: () => t("menu.open"), hint: () => settings.hotkeys.open, icon: "folder-arrow-right", action: openFileDialog },
+      { label: () => t("menu.help"), hint: "F1", action: showHelp },
       { label: () => t("menu.quit"), hint: () => settings.hotkeys.quit, icon: "logout", action: () => void quitApp() },
     ],
   },
@@ -432,6 +476,7 @@ for (const catButton of settingsDialog.querySelectorAll<HTMLButtonElement>(".set
   });
 }
 document.getElementById("plugins-close")!.addEventListener("click", () => pluginsDialog.close());
+document.getElementById("help-close")!.addEventListener("click", () => helpDialog.close());
 
 document.getElementById("set-launch-maximized")!.addEventListener("change", (e) => {
   setSetting("window", "launchMaximized", (e.target as HTMLInputElement).checked);
@@ -453,9 +498,15 @@ document.getElementById("set-always-on-top")!.addEventListener("change", async (
 
 // Status bar FPS, refreshed twice a second from the render loop counter.
 const fpsEl = document.getElementById("status-fps")!;
+fpsEl.title = t("status.fps");
 setInterval(() => {
   fpsEl.textContent = `${viewer.fps} fps`;
 }, 500);
+
+// App version badge: the tooltip shows the full product name with the
+// version.
+const versionEl = document.getElementById("status-version")!;
+versionEl.title = `!votekickViewer3D v${APP_VERSION}`;
 
 // Viewport colors (Settings > Colors): a ShareX style picker per row,
 // persisted and applied on OK.
@@ -738,8 +789,15 @@ window.addEventListener("keydown", (e) => {
   }
 
   // Open dialogs swallow keys; Escape closes them natively.
-  if (settingsDialog.open || pluginsDialog.open || aboutDialog.open) return;
+  if (settingsDialog.open || pluginsDialog.open || aboutDialog.open || helpDialog.open) return;
   if (e.target instanceof HTMLInputElement) return;
+
+  // F1: Help dialog with every hotkey.
+  if (e.code === "F1") {
+    e.preventDefault();
+    showHelp();
+    return;
+  }
 
   // Blender-style numpad view shortcuts, fixed (not editable): e.code is
   // used, so they work with NumLock on or off and in any layout.
@@ -817,7 +875,7 @@ window.addEventListener("mousedown", (e) => {
   }
 
   // Open dialogs and clicks on UI controls are UI actions, not hotkeys.
-  if (settingsDialog.open || pluginsDialog.open || aboutDialog.open) return;
+  if (settingsDialog.open || pluginsDialog.open || aboutDialog.open || helpDialog.open) return;
   const target = e.target as HTMLElement | null;
   if (
     target instanceof HTMLButtonElement ||

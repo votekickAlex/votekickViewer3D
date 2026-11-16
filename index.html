@@ -101,7 +101,6 @@
             <span data-i18n="picker.new">New</span><span id="cp-new" class="cp-swatch"></span>
             <span data-i18n="picker.current">Current</span><span id="cp-current" class="cp-swatch"></span>
           </div>
-          <button type="button" class="icon-button" id="cp-eyedropper" data-icon="paint-drop-filled" aria-label="Pick screen color" data-i18n-title="picker.eyedropper"></button>
         </div>
       </div>
       <h3 data-i18n="picker.recent">Recent colors</h3>
@@ -111,6 +110,20 @@
       <div class="dialog-actions">
         <button id="cp-ok" data-i18n="picker.ok">OK</button>
         <button id="cp-cancel" data-i18n="picker.cancel">Cancel</button>
+      </div>
+    </dialog>
+
+    <dialog id="help-dialog">
+      <div class="dialog-head">
+        <span class="dialog-icon" data-icon="question-circle" aria-hidden="true"></span>
+        <h2 data-i18n="help.title">Hotkeys</h2>
+      </div>
+      <h3 data-i18n="help.actions">Actions</h3>
+      <div id="help-actions" class="help-grid"></div>
+      <h3 data-i18n="help.views">Numpad views</h3>
+      <div id="help-views" class="help-grid"></div>
+      <div class="dialog-actions">
+        <button id="help-close" data-i18n="dialog.ok">OK</button>
       </div>
     </dialog>
 

@@ -13,6 +13,7 @@ export const ENGLISH: Record<string, string> = {
   "menu.file": "File",
   "menu.view": "View",
   "menu.tools": "Tools",
+  "menu.help": "Help",
   "menu.open": "Open…",
   "menu.quit": "Quit",
   "menu.grid": "Grid",
@@ -35,6 +36,8 @@ export const ENGLISH: Record<string, string> = {
   "about.version": "Version {version}",
 
   "status.noModel": "No model loaded",
+  "status.fps": "Frames per second",
+  "status.projection": "Current projection (Num 5 switches)",
   "status.loading": "Loading…",
   "status.loadingModel": "Loading {name}…",
   "status.parsing": "Parsing {name} - this can take a while for very large models…",
@@ -62,7 +65,6 @@ export const ENGLISH: Record<string, string> = {
   "picker.hex": "Hex",
   "picker.new": "New",
   "picker.current": "Current",
-  "picker.eyedropper": "Pick screen color",
   "picker.recent": "Recent colors",
   "picker.standard": "Standard colors",
   "picker.ok": "OK",
@@ -84,6 +86,13 @@ export const ENGLISH: Record<string, string> = {
   "hotkeys.title": "Click, then press the new key or mouse button (Esc cancels, Backspace clears)",
   "hotkeys.capture": "Press a key or mouse button - Esc to cancel, Backspace to clear",
   "hotkeys.reset": "Reset hotkeys",
+
+  "help.title": "Hotkeys",
+  "help.actions": "Actions",
+  "help.views": "Numpad views",
+  "help.flip": "Opposite side",
+  "help.orbit": "Orbit",
+  "help.zoom": "Zoom",
 
   "plugins.title": "Plugins",
   "plugins.todo": "TODO: custom user plugins are planned for a future version.",

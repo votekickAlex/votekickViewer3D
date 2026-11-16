@@ -24,21 +24,26 @@ function hide(): void {
   tip.hidden = true;
 }
 
-/** Puts the bubble near the pointer, clamped to the window edges. */
+/** Puts the bubble right above the pointer, clamped to the window edges.
+ * A modal <dialog> paints in the browser top layer above every fixed
+ * element, so while the hover is inside an open dialog the bubble is
+ * moved into that dialog to appear above it. */
 function showAt(x: number, y: number): void {
   if (!host || !stashedTitle) return;
+  const dialog = host.closest("dialog");
+  if (dialog && dialog.open) {
+    if (tip.parentElement !== dialog) dialog.appendChild(tip);
+  } else if (tip.parentElement !== document.body) {
+    document.body.appendChild(tip);
+  }
   tip.textContent = stashedTitle;
   tip.hidden = false;
-  const pad = 12;
-  let left = x + 14;
-  let top = y + 20;
+  const pad = 8;
   const rect = tip.getBoundingClientRect();
-  if (left + rect.width + pad > window.innerWidth) {
-    left = Math.max(pad, x - rect.width - 10);
-  }
-  if (top + rect.height + pad > window.innerHeight) {
-    top = Math.max(pad, y - rect.height - 10);
-  }
+  let left = x - rect.width / 2;
+  let top = y - rect.height - 10;
+  left = Math.min(Math.max(pad, left), window.innerWidth - rect.width - pad);
+  top = Math.min(Math.max(pad, top), window.innerHeight - rect.height - pad);
   tip.style.left = `${left}px`;
   tip.style.top = `${top}px`;
 }
@@ -46,6 +51,7 @@ function showAt(x: number, y: number): void {
 /** Drops the current host, restoring its title attribute. */
 function release(): void {
   hide();
+  if (tip.parentElement !== document.body) document.body.appendChild(tip);
   if (host) {
     host.setAttribute("title", stashedTitle);
   }

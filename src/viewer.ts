@@ -67,6 +67,11 @@ export class Viewer {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     container.appendChild(this.renderer.domElement);
 
+    // Dev-only console hook for debugging the fit and scene content.
+    if (import.meta.env.DEV) {
+      (window as unknown as Record<string, unknown>).__viewer = this;
+    }
+
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(BG_COLOR);
 
@@ -214,20 +219,30 @@ export class Viewer {
     // the camera at distance D from the center, a corner c (depth z
     // toward the camera, screen offsets cx, cy) needs
     // D >= z + max(cx / tanH, cy / tanV).
-    const right = new THREE.Vector3().crossVectors(dir, this.camera.up).normalize();
-    const up = new THREE.Vector3().crossVectors(right, dir).normalize();
+    // Camera basis for the fit constraints. It must match the orientation
+    // place() will produce (canonical up + lookAt), not the current
+    // camera roll: a stale up (e.g. (0,0,-1) left by the top view preset)
+    // would overestimate the corner offsets and make the zoom pass land
+    // short of the target span.
+    const upHint = Math.abs(dir.y) > 0.999
+      ? new THREE.Vector3(0, 0, dir.y > 0 ? -1 : 1)
+      : new THREE.Vector3(0, 1, 0);
+    const right = new THREE.Vector3().crossVectors(upHint, dir).normalize();
+    const up = new THREE.Vector3().crossVectors(dir, right).normalize();
     const tanV = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
     const tanH = tanV * this.camera.aspect;
     const aspect = this.camera.aspect;
     let distance = 0;
     let orthoHalfH = 0;
     const corner = new THREE.Vector3();
+    const cornerOffsets: THREE.Vector3[] = [];
     for (let i = 0; i < 8; i++) {
       corner.set(
         i & 1 ? box.max.x : box.min.x,
         i & 2 ? box.max.y : box.min.y,
         i & 4 ? box.max.z : box.min.z,
       ).sub(center);
+      cornerOffsets.push(corner.clone());
       const z = corner.dot(dir);
       const cx = Math.abs(corner.dot(right));
       const cy = Math.abs(corner.dot(up));
@@ -237,10 +252,71 @@ export class Viewer {
     distance *= FIT_MARGIN;
     orthoHalfH *= FIT_MARGIN;
 
-    this.controls.target.copy(center);
-    const cam = this.activeCamera;
-    cam.up.set(0, 1, 0);
-    cam.position.copy(center).addScaledVector(dir, distance);
+    /** Places both cameras along the view direction at `d` with the
+     * current ortho half height. The canonical up and a synchronous
+     * lookAt keep the camera matrices valid for the projections the
+     * fit loops read right after (no frame in between). */
+    const orthoFit = { halfH: orthoHalfH };
+    const place = (d: number): void => {
+      this.controls.target.copy(center);
+      this.camera.up.set(0, 1, 0);
+      this.orthoCamera.up.set(0, 1, 0);
+      const pos = center.clone().addScaledVector(dir, d);
+      this.camera.position.copy(pos);
+      this.camera.lookAt(center);
+      this.orthoCamera.position.copy(pos);
+      this.orthoCamera.lookAt(center);
+      this.orthoCamera.zoom = 1;
+      this.orthoHalfH = orthoFit.halfH;
+      this.updateOrthoFrustum();
+    };
+
+    const ortho = this.orthoOn;
+    const cam: THREE.Camera = ortho ? this.orthoCamera : this.camera;
+    place(distance);
+
+    // Depth of the front face toward the camera: zooming in must never
+    // move the camera inside the box.
+    let zMax = -Infinity;
+    for (const c of cornerOffsets) zMax = Math.max(zMax, c.dot(dir));
+    const minDistance = zMax + maxDim * 0.02 + 1e-6;
+
+    // Fill the viewport with the box, FIT_MARGIN of breathing room.
+    const targetSpan = 2 / FIT_MARGIN;
+
+    /** Projects the box and returns the larger of the two fill ratios
+     * (projected span over the allowed span); 1 means exactly filled. */
+    const fillRatio = (d: number): number => {
+      place(d);
+      cam.updateMatrixWorld(true);
+      let maxY = -2;
+      let minY = 2;
+      let maxX = -2;
+      let minX = 2;
+      for (const c of cornerOffsets) {
+        const p = c.clone().add(center).project(cam);
+        if (p.y > maxY) maxY = p.y;
+        if (p.y < minY) minY = p.y;
+        if (p.x > maxX) maxX = p.x;
+        if (p.x < minX) minX = p.x;
+      }
+      return Math.max((maxY - minY) / targetSpan, (maxX - minX) / targetSpan);
+    };
+
+    if (ortho) {
+      // Orthographic projection is linear in the frustum height, so a
+      // single exact step lands on the target size.
+      orthoFit.halfH *= fillRatio(distance);
+      place(distance);
+    } else {
+      // In perspective the projected span depends on the corner depths,
+      // and centering shifts near corners more than far ones, so the
+      // distance and the centering must be solved together.
+      distance = this.fitPerspDistance(minDistance);
+    }
+
+    // Centering: equal gaps on all four sides of the viewport.
+    this.centerProjection();
 
     // Dynamic near/far so huge and tiny models both render correctly.
     this.camera.near = Math.max(maxDim / 1000, 0.001);
@@ -248,17 +324,123 @@ export class Viewer {
     this.camera.updateProjectionMatrix();
     this.orthoCamera.near = this.camera.near;
     this.orthoCamera.far = this.camera.far;
-    if (this.orthoOn) {
-      this.orthoCamera.position.copy(cam.position);
-      // The frustum is recomputed from scratch, so a zoom factor left by
-      // wheel zoom must be dropped: OrbitControls zooms an orthographic
-      // camera by scaling camera.zoom instead of moving it, and the old
-      // factor would keep the model at its previous on-screen size.
-      this.orthoCamera.zoom = 1;
-      this.orthoHalfH = orthoHalfH;
-      this.updateOrthoFrustum();
-    }
     this.controls.update();
+  }
+
+  /** Recenters the projected bounding box on screen so the gaps are
+   * equal on all four viewport sides. Runs after fitting and after
+   * orthographic toggles. Pass `precomputed` to skip the (expensive)
+   * scene traversal when the caller already measured the box. */
+  private centerProjection(precomputed?: THREE.Box3): void {
+    if (this.modelRoot.children.length === 0) return;
+    const box = precomputed ?? new THREE.Box3().setFromObject(this.modelRoot);
+    if (box.isEmpty()) return;
+    const center = box.getCenter(new THREE.Vector3());
+    const cam = this.activeCamera;
+
+    // Camera basis: right = up x dir (the camera looks along -dir), and
+    // the true up is recomputed from it, so shifts along these axes move
+    // the image exactly horizontally / vertically.
+    const dir = cam.position.clone().sub(this.controls.target);
+    if (dir.lengthSq() < 1e-12) dir.set(0, 0, 1);
+    dir.normalize();
+    // Guard against a view direction parallel to the up vector (would
+    // produce a zero cross product): fall back to a Z up, mirroring the
+    // top/bottom view presets.
+    const upHint = Math.abs(cam.up.dot(dir)) > 0.999
+      ? new THREE.Vector3(0, 0, dir.y > 0 ? -1 : 1)
+      : cam.up.clone();
+    const right = new THREE.Vector3().crossVectors(upHint, dir).normalize();
+    const up = new THREE.Vector3().crossVectors(dir, right).normalize();
+
+    // World units that correspond to one NDC unit at the box center.
+    const ortho = this.orthoOn;
+    const tanV = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
+    const tanH = tanV * this.camera.aspect;
+    const distance = Math.max(cam.position.distanceTo(this.controls.target), 1e-6);
+    const worldPerNdcY = ortho ? this.orthoHalfH : distance * tanV;
+    const worldPerNdcX = ortho ? this.orthoHalfH * this.camera.aspect : distance * tanH;
+
+    const corners: THREE.Vector3[] = [];
+    for (let i = 0; i < 8; i++) {
+      corners.push(
+        new THREE.Vector3(
+          i & 1 ? box.max.x : box.min.x,
+          i & 2 ? box.max.y : box.min.y,
+          i & 4 ? box.max.z : box.min.z,
+        ).sub(center),
+      );
+    }
+
+    /** Shifts the image along `axis` by `shiftNdc` NDC units (both
+     * cameras and the orbit target move, so the view direction and the
+     * pivot stay consistent). */
+    const shiftImage = (axis: THREE.Vector3, shiftNdc: number, worldPerNdc: number): void => {
+      const world = axis.clone().multiplyScalar(-shiftNdc * worldPerNdc);
+      this.camera.position.add(world);
+      this.orthoCamera.position.add(world);
+      this.controls.target.add(world);
+      cam.updateMatrixWorld(true);
+    };
+
+    /** Centers the box along one screen axis so the gaps on both sides
+     * are equal; `pick` reads the NDC component. In ortho the NDC
+     * response to a lateral shift is exactly 1 for every depth, so one
+     * full-residual step is exact. In perspective the response of a
+     * corner is dist/depth (near corners move more), so the step is the
+     * Newton step; a plain half-residual step oscillates on flat or
+     * close-up views. */
+    const centerAxis = (
+      axis: THREE.Vector3,
+      worldPerNdc: number,
+      pick: (p: THREE.Vector3) => number,
+    ): void => {
+      for (let iter = 0; iter < 6; iter++) {
+        cam.updateMatrixWorld(true);
+        const camPos = cam.position;
+        let maxA = -2;
+        let minA = 2;
+        let dMax = distance;
+        let dMin = distance;
+        for (const c of corners) {
+          const v = c.clone().add(center);
+          // Depth toward the camera along the view direction (positive
+          // for points in front of the camera); lateral shifts never
+          // change it, so it stays valid across iterations.
+          const depth = Math.max(
+            distance * 0.01,
+            camPos.clone().sub(v).dot(dir),
+          );
+          const a = pick(v.project(cam));
+          if (a > maxA) {
+            maxA = a;
+            dMax = depth;
+          }
+          if (a < minA) {
+            minA = a;
+            dMin = depth;
+          }
+        }
+        const residual = -(maxA + minA);
+        // A lateral shift of s NDC moves BOTH projected extremes by s
+        // (exactly in ortho, by s*dist/depth per corner in perspective),
+        // so the sum response is 2s: the exact ortho step is half the
+        // residual. In perspective the response per corner is depth
+        // weighted, and solving sum - s*dist*(1/dMax + 1/dMin) = 0 gives
+        // the Newton factor below; a plain half-residual step oscillates
+        // on flat or close-up views. Break on the RESIDUAL, not on the
+        // step size: with strongly different corner depths the step is
+        // much smaller than the residual it exactly cancels.
+        const shiftNdc = ortho
+          ? residual / 2
+          : residual * dMax * dMin / (distance * (dMax + dMin));
+        if (!isFinite(shiftNdc) || Math.abs(maxA + minA) < 0.0015) break;
+        shiftImage(axis, shiftNdc, worldPerNdc);
+      }
+    };
+
+    centerAxis(up, worldPerNdcY, (p) => p.y);
+    centerAxis(right, worldPerNdcX, (p) => p.x);
   }
 
   setGridVisible(visible: boolean): void {
@@ -323,12 +505,97 @@ export class Viewer {
     return this.orthoOn;
   }
 
+  /** Bisects the perspective camera distance along the current view
+   * direction until the screen-centered bounding box exactly fills the
+   * viewport with FIT_MARGIN of breathing room, never closer than
+   * `minDistance`. Centering runs inside the measurement: centering a
+   * perspective view shifts near corners more than far ones, which
+   * changes the projected span, so the distance and the centering must
+   * be solved together. Leaves the camera fitted and centered. */
+  private fitPerspDistance(minDistance?: number): number {
+    const cam = this.camera;
+    const target0 = this.controls.target.clone();
+    const dir = cam.position.clone().sub(target0);
+    if (dir.lengthSq() < 1e-12) dir.set(0, 0, 1);
+    dir.normalize();
+    const box = new THREE.Box3().setFromObject(this.modelRoot);
+    if (box.isEmpty()) return cam.position.distanceTo(target0);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z);
+    let zMax = -Infinity;
+    for (let i = 0; i < 8; i++) {
+      zMax = Math.max(
+        zMax,
+        new THREE.Vector3(
+          i & 1 ? box.max.x : box.min.x,
+          i & 2 ? box.max.y : box.min.y,
+          i & 4 ? box.max.z : box.min.z,
+        ).sub(center).dot(dir),
+      );
+    }
+    // The camera must never end up inside the box, whatever the caller
+    // asks for.
+    const minD = Math.max(minDistance ?? 0, zMax + maxDim * 0.02 + 1e-6);
+
+    const corners: THREE.Vector3[] = [];
+    for (let i = 0; i < 8; i++) {
+      corners.push(
+        new THREE.Vector3(
+          i & 1 ? box.max.x : box.min.x,
+          i & 2 ? box.max.y : box.min.y,
+          i & 4 ? box.max.z : box.min.z,
+        ),
+      );
+    }
+    const targetSpan = 2 / FIT_MARGIN;
+
+    /** Fill ratio at distance `d` with the box screen-centered. The
+     * camera is placed relative to the LIVE orbit target: centering
+     * shifts the target sideways, and placing relative to a stale point
+     * would skew the axis centerProjection solves against. */
+    const ratio = (d: number): number => {
+      cam.position.copy(this.controls.target).addScaledVector(dir, d);
+      cam.lookAt(this.controls.target);
+      this.centerProjection(box);
+      cam.updateMatrixWorld(true);
+      let maxY = -2;
+      let minY = 2;
+      let maxX = -2;
+      let minX = 2;
+      for (const c of corners) {
+        const p = c.clone().project(cam);
+        if (p.y > maxY) maxY = p.y;
+        if (p.y < minY) minY = p.y;
+        if (p.x > maxX) maxX = p.x;
+        if (p.x < minX) minX = p.x;
+      }
+      return Math.max((maxY - minY) / targetSpan, (maxX - minX) / targetSpan);
+    };
+
+    // The ratio decreases monotonically with the distance, so bisect.
+    // The lower bound always has ratio > 1 (the camera is nearly inside
+    // the box there), so the bracket is valid.
+    let lo = minD;
+    let hi = Math.max(minD * 4, cam.position.distanceTo(this.controls.target) * 4);
+    let guard = 0;
+    while (ratio(hi) > 1 && guard++ < 20) hi *= 2;
+    for (let i = 0; i < 40; i++) {
+      const mid = (lo + hi) / 2;
+      if (ratio(mid) > 1) lo = mid;
+      else hi = mid;
+    }
+    ratio((lo + hi) / 2);
+    return (lo + hi) / 2;
+  }
+
   /** Toggles between the perspective and the orthographic camera, keeping
    * the on-screen scale and the camera position/target. */
   setOrthographic(on: boolean): void {
     if (on === this.orthoOn) return;
     const from = this.activeCamera;
     const dir = from.position.clone().sub(this.controls.target);
+    let matched = Infinity;
     if (on) {
       // Entering ortho: frustum matches the current perspective view.
       const dist = Math.max(dir.length(), 1e-6);
@@ -338,12 +605,15 @@ export class Viewer {
       this.orthoCamera.position.copy(from.position);
       this.updateOrthoFrustum();
     } else {
-      // Leaving ortho: place the perspective camera so the view keeps its
-      // size (frustum half height / tan(fov/2) = matching distance).
-      const dist =
+      // Leaving ortho: the matched distance keeps the frustum scale at
+      // the focus depth, but perspective magnifies nearer box parts, so
+      // the matched view can clip the viewport. The fit below solves the
+      // distance and the centering together; it never moves closer than
+      // the matched distance, so a safe matched view keeps its scale.
+      matched =
         this.orthoHalfH / this.orthoCamera.zoom /
         Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
-      dir.setLength(dist);
+      dir.setLength(matched);
       this.camera.position.copy(this.controls.target).add(dir);
     }
     this.camera.up.copy(from.up);
@@ -351,6 +621,14 @@ export class Viewer {
     this.orthoOn = on;
     this.controls.object = this.activeCamera;
     this.controls.update();
+    if (!on) {
+      this.camera.lookAt(this.controls.target);
+      this.fitPerspDistance(matched);
+      this.controls.update();
+    }
+    // Recenter the box on screen so the gaps stay equal in the new
+    // projection.
+    this.centerProjection();
   }
 
   private updateOrthoFrustum(): void {
@@ -379,10 +657,21 @@ export class Viewer {
     const dist = dir.length() > 1e-6 ? dir.length() : 5;
     cam.up.set(0, 1, 0);
     if (preset === "top" || preset === "bottom") cam.up.set(0, 0, -1);
-    cam.position
-      .copy(this.controls.target)
-      .addScaledVector(new THREE.Vector3(...dirs[preset]), dist);
+    // Anchor the preset to the model center: the orbit target may have
+    // been shifted by the screen centering, which would throw the box
+    // off screen otherwise.
+    const presetDir = new THREE.Vector3(...dirs[preset]);
+    const box = new THREE.Box3().setFromObject(this.modelRoot);
+    if (!box.isEmpty()) {
+      const center = box.getCenter(new THREE.Vector3());
+      this.controls.target.copy(center);
+      cam.position.copy(center).addScaledVector(presetDir, dist);
+      // Keep the inactive camera on the same line (frameModel places
+      // both cameras on the line through the center).
+      (this.orthoOn ? this.camera : this.orthoCamera).position.copy(cam.position);
+    }
     this.controls.update();
+    this.centerProjection();
   }
 
   /** Orbits the camera around the target: yaw around world up, pitch
@@ -422,8 +711,14 @@ export class Viewer {
     const cam = this.activeCamera;
     const dir = cam.position.clone().sub(this.controls.target);
     if (dir.lengthSq() < 1e-12) return;
-    cam.position.copy(this.controls.target).sub(dir);
+    // Flip around the model center so the box stays centered on screen.
+    const box = new THREE.Box3().setFromObject(this.modelRoot);
+    const pivot = box.isEmpty() ? this.controls.target.clone() : box.getCenter(new THREE.Vector3());
+    cam.position.copy(pivot).sub(dir);
+    this.controls.target.copy(pivot);
+    (this.orthoOn ? this.camera : this.orthoCamera).position.copy(cam.position);
     this.controls.update();
+    this.centerProjection();
   }
 
   get hasModel(): boolean {

@@ -96,6 +96,12 @@ export function createMenuBar(
         icon.className = "menu-item-icon";
         icon.innerHTML = iconSvg(item.icon);
         row.appendChild(icon);
+      } else {
+        // Invisible placeholder: labels line up in one column even for
+        // items without an icon.
+        const spacer = document.createElement("span");
+        spacer.className = "menu-item-icon";
+        row.appendChild(spacer);
       }
       const label = document.createElement("span");
       label.className = "menu-label";

@@ -2,8 +2,7 @@
 //
 // Opened from Settings > Colors. Contains a saturation/value gradient
 // square, a hue strip, an alpha strip, RGB and alpha numeric fields, a hex
-// field, an eyedropper (EyeDropper API, when the WebView supports it),
-// recent colors (persisted) and a fixed standard palette. The dialog
+// field, recent colors (persisted) and a fixed standard palette. The dialog
 // resolves with an "#rrggbbaa" string (alpha omitted when opaque) or null
 // on cancel.
 
@@ -204,22 +203,6 @@ function bindOnce(): void {
   }
   inputs.a.addEventListener("input", applyAlphaField);
   inputs.hex.addEventListener("change", () => applyHex(inputs.hex.value));
-
-  // Screen eyedropper (Chromium EyeDropper API, when available). A
-  // rejected or failed request hides the button: on some WebView2
-  // versions the API reports support but never resolves, so a dead
-  // button must not stay in the dialog.
-  const eyedropper = el<HTMLButtonElement>("cp-eyedropper");
-  if ("EyeDropper" in window) {
-    eyedropper.addEventListener("click", () => {
-      const dropper = new (window as unknown as { EyeDropper: new () => { open(): Promise<{ sRGBHex: string }> } }).EyeDropper();
-      dropper.open().then((res) => applyHex(res.sRGBHex)).catch(() => {
-        eyedropper.style.display = "none";
-      });
-    });
-  } else {
-    eyedropper.style.display = "none";
-  }
 
   el<HTMLButtonElement>("cp-ok").addEventListener("click", finishOk);
   el<HTMLButtonElement>("cp-cancel").addEventListener("click", () => dialog.close());

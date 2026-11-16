@@ -395,10 +395,9 @@ dialog h3:first-child {
   position: relative;
   display: flex;
   align-items: stretch;
-  min-width: 560px;
-  max-width: 640px;
-  min-height: 360px;
-  max-height: 480px;
+  /* Fixed size: switching categories must not resize the window. */
+  width: min(620px, 92vw);
+  height: min(460px, 80vh);
 }
 
 /* Floating title row: the close cross sits top left, the dialog title
@@ -496,6 +495,33 @@ dialog h3:first-child {
 /* The display above must not defeat the hidden attribute. */
 .settings-pane[hidden] {
   display: none;
+}
+
+/* ---------- help dialog (hotkey list) ---------- */
+
+.help-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.help-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.help-row .help-name {
+  flex: 1;
+}
+
+.help-row .help-combo {
+  flex: none;
+  text-align: right;
+  color: var(--text-dim);
+  font-family: Consolas, monospace;
+  font-size: 12px;
 }
 
 .setting-row {
@@ -656,31 +682,6 @@ dialog h3:first-child {
 
 .cp-chip:hover {
   border-color: var(--accent);
-}
-
-/* Round icon-only buttons (the color picker eyedropper). */
-.icon-button {
-  appearance: none;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text);
-  cursor: pointer;
-}
-
-.icon-button:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.icon-button svg {
-  width: 16px;
-  height: 16px;
-  display: block;
-  margin: 5px;
 }
 
 /* ---------- editable hotkey rows ---------- */

@@ -23,7 +23,6 @@ import image from "./icons/line-md/image.svg?raw";
 import construction from "./icons/line-md/construction.svg?raw";
 import square from "./icons/line-md/square.svg?raw";
 import paintDrop from "./icons/line-md/paint-drop.svg?raw";
-import paintDropFilled from "./icons/line-md/paint-drop-filled.svg?raw";
 import closeSmall from "./icons/line-md/close-small.svg?raw";
 
 const ICONS: Record<string, string> = {
@@ -44,7 +43,6 @@ const ICONS: Record<string, string> = {
   construction,
   square,
   "paint-drop": paintDrop,
-  "paint-drop-filled": paintDropFilled,
   "close-small": closeSmall,
 };
 
