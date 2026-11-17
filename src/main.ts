@@ -51,24 +51,27 @@ const UNIT_MODES = ["auto", "m", "cm", "mm"] as const;
 type UnitMode = (typeof UNIT_MODES)[number];
 
 /** Unit label and world-to-unit factor for one length. Auto picks by
- * magnitude (world unit assumed to be a meter): 1 m and above shows
- * meters, 0.01 m and above centimeters, below that millimeters. Fixed
- * modes serve files authored in another unit (OBJ/STL/FBX carry no
- * reliable unit information). */
+ * magnitude (world unit assumed to be a meter): 1 m and above scales
+ * as meters, 0.01 m and above as centimeters, below that as
+ * millimeters, and shows plain numbers without a unit name (the
+ * numbers are conditional, the active mode shows in the status bar).
+ * Fixed modes serve files authored in another unit (OBJ/STL/FBX carry
+ * no reliable unit information) and label their numbers. */
 function unitFor(world: number): { unit: string; factor: number } {
   const mode = settings.general.units as UnitMode;
   if (mode === "m") return { unit: "m", factor: 1 };
   if (mode === "cm") return { unit: "cm", factor: 100 };
   if (mode === "mm") return { unit: "mm", factor: 1000 };
-  if (world >= 1) return { unit: "m", factor: 1 };
-  if (world >= 0.01) return { unit: "cm", factor: 100 };
-  return { unit: "mm", factor: 1000 };
+  if (world >= 1) return { unit: "", factor: 1 };
+  if (world >= 0.01) return { unit: "", factor: 100 };
+  return { unit: "", factor: 1000 };
 }
 
-/** Formats one world-space length, e.g. 2 m, 20 cm, 5 mm. */
+/** Formats one world-space length, e.g. 2 m, 20 cm, 5 mm; plain
+ * numbers (no unit name) in the auto mode. */
 function formatLength(world: number): string {
   const { unit, factor } = unitFor(world);
-  return `${Number((world * factor).toPrecision(3))} ${unit}`;
+  return unit ? `${Number((world * factor).toPrecision(3))} ${unit}` : `${Number((world * factor).toPrecision(3))}`;
 }
 
 /** Formats the model size with one unit for all three dimensions,
@@ -78,9 +81,10 @@ function formatSizeHtml(size: THREE.Vector3): string {
   const { unit, factor } = unitFor(Math.max(size.x, size.y, size.z));
   const dim = (v: number, color: string) =>
     `<span style="color:${color}">${Number((v * factor).toPrecision(3))}</span>`;
+  const label = unit ? ` ${unit}` : "";
   return (
     `${dim(size.x, AXIS_COLOR_HEX.x)} × ${dim(size.y, AXIS_COLOR_HEX.y)}` +
-    ` × ${dim(size.z, AXIS_COLOR_HEX.z)} ${unit}`
+    ` × ${dim(size.z, AXIS_COLOR_HEX.z)}${label}`
   );
 }
 

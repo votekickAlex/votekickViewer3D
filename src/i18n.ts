@@ -47,7 +47,7 @@ export const ENGLISH: Record<string, string> = {
     "Display unit mode for the size and grid step readouts; hotkey M cycles Auto / m / cm / mm",
 
   "status.sizeTip":
-    "Bounding box size of the model in the display unit, each dimension colored like its axis; the world unit is assumed to be a meter unless another unit is picked in Settings",
+    "Bounding box size of the model, each dimension colored like its axis; Auto mode shows plain numbers scaled by magnitude (the world unit is assumed to be a meter) unless another unit is picked in Settings",
 
   "status.axes": "World axes; the axis the camera looks straight along is gray",
   "status.loading": "Loading…",
@@ -71,7 +71,7 @@ export const ENGLISH: Record<string, string> = {
   "settings.units": "Display units",
 
   "settings.unitsHint":
-    "Model size and grid step readouts. Auto assumes the file unit is a meter (the glTF standard); for unitless formats authored in another unit pick it here. Hotkey M cycles the modes.",
+    "Model size and grid step readouts. Auto shows plain numbers, scaled by magnitude assuming the file unit is a meter (the glTF standard); for unitless formats authored in another unit pick it here. Hotkey M cycles the modes.",
 
   "settings.axesOpacity": "Axes opacity",
 

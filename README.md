@@ -95,9 +95,10 @@ dimension number colored like its axis) on the left next to the file
 stats, and the grid step (Step: 20 cm) plus the active unit mode on the
 right, together with an XYZ axis legend in the axis colors; the axis the
 camera looks straight along is styled like the disabled status icons.
-The unit is picked automatically by scale (a world unit is assumed to be
-a meter, the glTF standard) or fixed in Settings > General > Display
-units (hotkey `M` cycles the modes).
+The unit is picked automatically by scale, shown as plain numbers (a
+world unit is assumed to be a meter, the glTF standard) or fixed with a
+unit label in Settings > General > Display units (hotkey `M` cycles the
+modes).
 
 ### Menu bar, settings and languages
 
