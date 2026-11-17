@@ -1,6 +1,6 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import * as THREE from "three";
-import { Viewer } from "./viewer";
+import { Viewer, AXIS_COLOR_HEX } from "./viewer";
 import { isSupportedFile, loadFromArrayBuffer, setResourceBase, SUPPORTED_EXTENSIONS } from "./loader";
 import { loadSettings, saveSettingsSoon, setSetting, settings, type AppSettings } from "./settings";
 import { DEFAULTS } from "./settings-schema";
@@ -35,6 +35,36 @@ loadingOverlay.innerHTML = `
 document.body.appendChild(loadingOverlay);
 
 const viewer = new Viewer(viewport);
+
+// Status badges read these; the hex strings mirror the scene constants.
+const gridStepEl = document.getElementById("st-gridstep")!;
+const axesEl = document.getElementById("st-axes")!;
+const axisEls: Record<"x" | "y" | "z", HTMLElement> = {
+  x: document.getElementById("ax-x")!,
+  y: document.getElementById("ax-y")!,
+  z: document.getElementById("ax-z")!,
+};
+
+/** Grid step readout (the measurement unit for the model size) and the
+ * XYZ axis legend: per-axis colors, gray for the axis the camera looks
+ * straight along. */
+function updateStatusBadges(): void {
+  const step = viewer.gridStep;
+  gridStepEl.hidden = step === null;
+  if (step !== null) {
+    gridStepEl.textContent = `${t("status.gridStep")}: ${step}`;
+    gridStepEl.title = t("status.gridStepTip");
+  }
+  const dim = viewer.dimmedAxis;
+  for (const axis of ["x", "y", "z"] as const) {
+    axisEls[axis].style.color = dim === axis ? AXIS_COLOR_HEX.dim : AXIS_COLOR_HEX[axis];
+  }
+  axesEl.title = t("status.axes");
+}
+
+// The gizmo recolors in the render loop; this keeps the readout in the
+// same frame instead of waiting for the next status refresh.
+viewer.onAxisDimChange = () => updateStatusBadges();
 
 // The WebView2 default context menu (Back, Refresh, Save as, Print)
 // exposes the app as a plain HTML page; a model viewer has no use for it.
@@ -121,6 +151,7 @@ function refreshStatusIcons(): void {
     proj.textContent = viewer.orthographic ? "Orthographic" : "Perspective";
     proj.title = t("status.projection");
   }
+  updateStatusBadges();
 }
 
 async function toggleFullscreen(): Promise<void> {
@@ -163,6 +194,8 @@ let uiHidden = false;
 function toggleInterface(): void {
   uiHidden = !uiHidden;
   document.body.classList.toggle("ui-hidden", uiHidden);
+  // The world axes gizmo counts as interface too: hidden with H.
+  viewer.setAxesVisible(!uiHidden);
 }
 
 // ---------- hotkeys (editable in the Settings dialog) ----------
@@ -738,6 +771,7 @@ async function loadModel(buffer: ArrayBuffer, name: string): Promise<boolean> {
       }),
     );
     document.title = `${name} - ${APP_TITLE}`;
+    updateStatusBadges();
     return true;
   } catch (err) {
     if (seq !== loadingSeq) return false;
@@ -765,6 +799,7 @@ function countTriangles(root: THREE.Object3D): number {
 
 function handleLoadError(err: unknown, name: string): void {
   viewer.clearModel();
+  updateStatusBadges();
   console.error(err);
   const message = err instanceof Error ? err.message : String(err);
   const line = `Failed: ${name} - ${message}`;

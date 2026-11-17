@@ -89,6 +89,10 @@ the same way reset view does.
 
 The same commands are in the View menu.
 
+The status bar shows the grid step (the size of one grid cell, the unit
+for estimating the model size by counting cells) and an XYZ axis legend
+in the axis colors; the axis the camera looks straight along is gray.
+
 ### Menu bar, settings and languages
 
 - **File**: Open, Help, Quit.

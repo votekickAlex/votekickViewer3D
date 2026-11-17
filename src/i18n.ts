@@ -38,6 +38,12 @@ export const ENGLISH: Record<string, string> = {
   "status.noModel": "No model loaded",
   "status.fps": "Frames per second",
   "status.projection": "Current projection (Num 5 switches)",
+
+  "status.gridStep": "Step",
+
+  "status.gridStepTip": "Size of one grid cell; count cells to estimate the model size",
+
+  "status.axes": "World axes; the axis the camera looks straight along is gray",
   "status.loading": "Loading…",
   "status.loadingModel": "Loading {name}…",
   "status.parsing": "Parsing {name} - this can take a while for very large models…",

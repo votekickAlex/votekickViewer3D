@@ -33,6 +33,17 @@ function parseHexColor(hex: string): { color: THREE.Color; alpha: number } {
 const AXIS_X_COLOR = 0xd95454;
 const AXIS_Y_COLOR = 0x4a90d9;
 const AXIS_Z_COLOR = 0x5aa02c;
+/** An axis the camera looks straight along is drawn in this gray. */
+const AXIS_DIM_COLOR = 0x808690;
+
+/** Hex colors of the status bar XYZ readout, mirroring the scene
+ * constants so the letters always match the gizmo lines. */
+export const AXIS_COLOR_HEX = {
+  x: "#d95454",
+  y: "#4a90d9",
+  z: "#5aa02c",
+  dim: "#808690",
+} as const;
 
 export class Viewer {
   readonly renderer: THREE.WebGLRenderer;
@@ -41,6 +52,21 @@ export class Viewer {
   readonly controls: OrbitControls;
 
   private grid: THREE.Group;
+  /** Current cell size of the adaptive grid (world units). */
+  private gridCell = 1;
+  /** Grid color as set by Settings; kept so an adaptive rebuild keeps it. */
+  private gridHex = DEFAULT_GRID_COLOR;
+  /** Grid divisions per side: the extent is always this many cells. */
+  private static readonly GRID_CELLS = 20;
+  /** The three axis lines through the origin, separate from the grid so
+   * they stay visible when the grid is off; dimmed gray when the camera
+   * looks straight along one of them. */
+  private readonly axesGroup = new THREE.Group();
+  private axisMaterials: THREE.LineBasicMaterial[] = [];
+  private axisDim: "x" | "y" | "z" | null = null;
+  /** Set by main.ts: notified when the dimmed axis changes, so the
+   * status bar XYZ readout recolors in the same frame as the gizmo. */
+  onAxisDimChange: ((axis: "x" | "y" | "z" | null) => void) | null = null;
   private modelRoot: THREE.Group;
   private wireframe = false;
   /** Shared material for the wireframe overlay: one flat, user-colored
@@ -112,8 +138,10 @@ export class Viewer {
     sun.position.set(5, 10, 7);
     this.scene.add(sun);
 
-    this.grid = this.createGrid(DEFAULT_GRID_COLOR);
+    this.grid = this.createGrid(DEFAULT_GRID_COLOR, this.gridCell);
     this.scene.add(this.grid);
+    this.createAxes(Viewer.GRID_CELLS * this.gridCell / 2);
+    this.scene.add(this.axesGroup);
 
     this.modelRoot = new THREE.Group();
     this.scene.add(this.modelRoot);
@@ -136,6 +164,7 @@ export class Viewer {
     this.resize();
     this.renderer.setAnimationLoop(() => {
       this.controls.update();
+      this.updateAxisDim();
       this.renderer.render(this.scene, this.activeCamera);
       this.frames++;
       const now = performance.now();
@@ -147,11 +176,38 @@ export class Viewer {
     });
   }
 
-  private createGrid(gridHex: string): THREE.Group {
+  /** Smallest value from the 1-2-5 ladder that is >= x, so grid cells
+   * always read as round numbers (0.1, 0.2, 0.5, 1, 2, 5, 10, ...). */
+  private static niceCell(x: number): number {
+    if (!isFinite(x) || x <= 0) return 1;
+    const base = Math.pow(10, Math.floor(Math.log10(x)));
+    // The mantissa x / base lies in [1, 10): compare it with a relative
+    // tolerance wide enough to absorb float32 vertex noise in the bbox
+    // size (about 1e-7 relative), so a 0.05 model cannot skip to 0.01.
+    const scaled = x / base;
+    for (const m of [1, 2, 5]) {
+      if (scaled <= m * (1 + 1e-6)) return m * base;
+    }
+    return 10 * base;
+  }
+
+  /** Adapts the grid to the model: the cell comes from the 1-2-5 ladder
+   * so the model's largest dimension spans roughly 10-20 cells, and the
+   * extent stays GRID_CELLS cells wide. Rebuilds only when the ladder
+   * cell actually changes (ladder steps are 2x or more apart). */
+  private adaptGrid(maxDim: number): void {
+    const cell = Viewer.niceCell(maxDim / 10);
+    if (cell === this.gridCell) return;
+    this.gridCell = cell;
+    this.rebuildGrid();
+  }
+
+  private createGrid(gridHex: string, cell: number): THREE.Group {
     const group = new THREE.Group();
     const { color, alpha } = parseHexColor(gridHex);
+    const extent = Viewer.GRID_CELLS * cell;
 
-    const grid = new THREE.GridHelper(20, 20, GRID_CENTER_COLOR, color.getHex());
+    const grid = new THREE.GridHelper(extent, Viewer.GRID_CELLS, GRID_CENTER_COLOR, color.getHex());
     const mat = grid.material as THREE.LineBasicMaterial;
     // Fully opaque, depth test off and drawn last: the grid stays a solid
     // constant-color overlay on top of the model instead of hiding behind
@@ -164,34 +220,102 @@ export class Viewer {
     }
     grid.renderOrder = 10;
     // Repaint the two center lines through the origin: X red, Z green
-    // (Blender's ground plane axes). For GridHelper(20, 20) the line
-    // block i occupies vertices 4i..4i+3: 4i/4i+1 are the line along X,
-    // 4i+2/4i+3 the line along Z, so the center block starts at 4*10.
+    // (Blender's ground plane axes). For GridHelper(N, N) the line block
+    // i occupies vertices 4i..4i+3: 4i/4i+1 are the line along X,
+    // 4i+2/4i+3 the line along Z, so the center block starts at
+    // 4 * (N / 2).
+    const base = 4 * (Viewer.GRID_CELLS / 2);
     const colors = grid.geometry.getAttribute("color") as THREE.BufferAttribute;
     const red = new THREE.Color(AXIS_X_COLOR);
     const green = new THREE.Color(AXIS_Z_COLOR);
-    for (const v of [40, 41]) colors.setXYZ(v, red.r, red.g, red.b);
-    for (const v of [42, 43]) colors.setXYZ(v, green.r, green.g, green.b);
+    for (const v of [base, base + 1]) colors.setXYZ(v, red.r, red.g, red.b);
+    for (const v of [base + 2, base + 3]) colors.setXYZ(v, green.r, green.g, green.b);
     group.add(grid);
-
-    // The vertical axis helper with Blender colors: our Y (up) is blue
-    // and our Z is green, drawn as lines through the origin.
-    const axisLine = (dir: THREE.Vector3, color: number): THREE.Line => {
-      const geo = new THREE.BufferGeometry().setFromPoints([
-        dir.clone().multiplyScalar(-1),
-        dir.clone(),
-      ]);
-      const line = new THREE.Line(
-        geo,
-        new THREE.LineBasicMaterial({ color, toneMapped: false, depthTest: false }),
-      );
-      line.renderOrder = 10;
-      return line;
-    };
-    group.add(axisLine(new THREE.Vector3(1, 0, 0), AXIS_X_COLOR));
-    group.add(axisLine(new THREE.Vector3(0, 1, 0), AXIS_Y_COLOR));
-    group.add(axisLine(new THREE.Vector3(0, 0, 1), AXIS_Z_COLOR));
     return group;
+  }
+
+  /** Rebuilds the grid for the current cell size and color and rescales
+   * the axis lines, which span the grid. */
+  private rebuildGrid(): void {
+    const visible = this.grid.visible;
+    this.disposeLines(this.grid);
+    this.grid = this.createGrid(this.gridHex, this.gridCell);
+    this.grid.visible = visible;
+    this.scene.add(this.grid);
+    this.createAxes(Viewer.GRID_CELLS * this.gridCell / 2);
+  }
+
+  /** Rebuilds the three axis lines through the origin, spanning the grid.
+   * Separate from the grid group so they survive grid toggles, color
+   * changes and adaptive rebuilds. */
+  private createAxes(halfExtent: number): void {
+    this.disposeLines(this.axesGroup);
+    this.axesGroup.clear();
+    this.axisMaterials = [];
+    const line = (dir: THREE.Vector3, color: number): THREE.Line => {
+      const material = new THREE.LineBasicMaterial({ color, toneMapped: false, depthTest: false });
+      this.axisMaterials.push(material);
+      const geo = new THREE.BufferGeometry().setFromPoints([
+        dir.clone().multiplyScalar(-halfExtent),
+        dir.clone().multiplyScalar(halfExtent),
+      ]);
+      const l = new THREE.Line(geo, material);
+      l.renderOrder = 10;
+      return l;
+    };
+    this.axesGroup.add(line(new THREE.Vector3(1, 0, 0), AXIS_X_COLOR));
+    this.axesGroup.add(line(new THREE.Vector3(0, 1, 0), AXIS_Y_COLOR));
+    this.axesGroup.add(line(new THREE.Vector3(0, 0, 1), AXIS_Z_COLOR));
+    this.applyAxisDim();
+  }
+
+  /** Disposes the geometries and materials of every line in a group (the
+   * root Group itself has neither). */
+  private disposeLines(group: THREE.Group): void {
+    group.traverse((obj) => {
+      const line = obj as THREE.Line;
+      if (!line.geometry || !line.material) return;
+      line.geometry.dispose();
+      (line.material as THREE.Material).dispose();
+    });
+  }
+
+  /** Paints the axis materials: the axis the camera looks straight along
+   * is gray, the others keep their colors. Called from the render loop
+   * (cheap: guarded by the cached state) and after an axes rebuild. */
+  private applyAxisDim(): void {
+    const dimmed = new THREE.Color(AXIS_DIM_COLOR);
+    this.axisMaterials[0]?.color.set(this.axisDim === "x" ? dimmed : AXIS_X_COLOR);
+    this.axisMaterials[1]?.color.set(this.axisDim === "y" ? dimmed : AXIS_Y_COLOR);
+    this.axisMaterials[2]?.color.set(this.axisDim === "z" ? dimmed : AXIS_Z_COLOR);
+  }
+
+  /** Tracks which axis the active camera looks along (either direction);
+   * null when the view is not axis aligned. */
+  private updateAxisDim(): void {
+    const dir = this.activeCamera.position.clone().sub(this.controls.target);
+    if (dir.lengthSq() < 1e-12) return;
+    dir.normalize();
+    let dim: "x" | "y" | "z" | null = null;
+    if (Math.abs(dir.x) > 0.999) dim = "x";
+    else if (Math.abs(dir.y) > 0.999) dim = "y";
+    else if (Math.abs(dir.z) > 0.999) dim = "z";
+    if (dim === this.axisDim) return;
+    this.axisDim = dim;
+    this.applyAxisDim();
+    this.onAxisDimChange?.(dim);
+  }
+
+  /** Axis the camera currently looks straight along (gray in the gizmo
+   * and in the status bar XYZ readout), null when not axis aligned. */
+  get dimmedAxis(): "x" | "y" | "z" | null {
+    return this.axisDim;
+  }
+
+  /** Axes stay visible no matter what the grid does; the interface
+   * hidden state (H) is the only thing that turns them off. */
+  setAxesVisible(visible: boolean): void {
+    this.axesGroup.visible = visible;
   }
 
   setModel(object: THREE.Object3D): void {
@@ -210,6 +334,11 @@ export class Viewer {
   clearModel(): void {
     this.disposeModel();
     this.refreshBBox();
+    // Back to the default one-unit grid for the empty scene.
+    if (this.gridCell !== 1) {
+      this.gridCell = 1;
+      this.rebuildGrid();
+    }
   }
 
   frameModel(resetAngle = false): void {
@@ -222,6 +351,7 @@ export class Viewer {
     const size = box.getSize(new THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z);
     if (!isFinite(maxDim) || maxDim === 0) return;
+    this.adaptGrid(maxDim);
 
     // Reset view returns to the canonical angle; otherwise keep the
     // current camera direction and just move to the fitting distance.
@@ -471,19 +601,19 @@ export class Viewer {
     return this.grid.visible;
   }
 
+  /** Current grid cell in world units, null when the grid is hidden:
+   * the status bar shows it as the measurement unit for the model size. */
+  get gridStep(): number | null {
+    return this.grid.visible ? this.gridCell : null;
+  }
+
   /** Rebuilds the grid with a new color (Settings > Colors); visibility
-   * and the fixed Blender axis colors are preserved. */
+   * and the adaptive cell size are preserved. */
   setGridColor(hex: string): void {
+    this.gridHex = hex;
     const visible = this.grid.visible;
-    this.scene.remove(this.grid);
-    this.grid.traverse((obj) => {
-      // The root Group itself has neither geometry nor material; skip it.
-      const line = obj as THREE.Line;
-      if (!line.geometry || !line.material) return;
-      line.geometry.dispose();
-      (line.material as THREE.Material).dispose();
-    });
-    this.grid = this.createGrid(hex);
+    this.disposeLines(this.grid);
+    this.grid = this.createGrid(hex, this.gridCell);
     this.grid.visible = visible;
     this.scene.add(this.grid);
   }
