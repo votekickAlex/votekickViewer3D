@@ -65,10 +65,12 @@ The full list is always available in the app: `F1` or File > Help.
 | `H` | Toggle interface (hides everything but the 3D viewport) |
 | `Q` | Quit |
 | `F1` | Help (all hotkeys) |
+| `Left` / `Right` | Previous / next model in the current model's folder |
 
 Every binding is editable in Tools > Settings > Hotkeys, including mouse
 buttons (e.g. `Ctrl+Mouse Left`); `Esc` cancels the capture, `Backspace`
-clears it.
+clears it. The arrow navigation needs a model opened through Explorer or
+the command line (dropped and picked files carry no folder path).
 
 ### Numpad views (Blender style)
 

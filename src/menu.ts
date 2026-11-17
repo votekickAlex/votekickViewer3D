@@ -161,17 +161,11 @@ export function createMenuBar(
         }
         case "ArrowLeft":
         case "ArrowRight": {
+          // Deliberately inert inside the menu: these keys switch to the
+          // previous / next model in the folder in the main window, and
+          // must not do that while a menu is open either.
           e.preventDefault();
-          const current = openButton;
-          if (!current) break;
-          const tops = Array.from(container.querySelectorAll<HTMLElement>(".menu-top"));
-          const at = tops.indexOf(current);
-          closeAll();
-          const next = tops[(at + (e.key === "ArrowRight" ? 1 : -1) + tops.length) % tops.length];
-          if (next) {
-            openMenu(next, menus[Number(next.dataset.index)]);
-            focusFirstItem();
-          }
+          e.stopPropagation();
           break;
         }
       }

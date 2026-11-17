@@ -14,6 +14,10 @@ export const DEFAULTS = {
   window: {
     launchMaximized: false,
     alwaysOnTop: false,
+    // Opt-in: when enabled, the fullscreen state is persisted on every
+    // toggle and re-applied at startup (gated again by rememberFullscreen).
+    rememberFullscreen: false,
+    fullscreen: false,
   },
   general: {
     language: "english",

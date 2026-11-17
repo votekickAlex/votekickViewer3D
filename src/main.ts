@@ -1,4 +1,4 @@
-import { convertFileSrc } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import * as THREE from "three";
 import { Viewer } from "./viewer";
 import { isSupportedFile, loadFromArrayBuffer, setResourceBase, SUPPORTED_EXTENSIONS } from "./loader";
@@ -138,6 +138,11 @@ async function toggleFullscreen(): Promise<void> {
       await document.documentElement.requestFullscreen();
       fullscreenOn = true;
     }
+  }
+  // Only persisted when the opt-in setting is on; apply_startup_window_state
+  // re-applies it on the next launch (gated by the same setting).
+  if (settings.window.rememberFullscreen) {
+    setSetting("window", "fullscreen", fullscreenOn);
   }
   refreshStatusIcons();
 }
@@ -319,6 +324,8 @@ function showSettings(): void {
   launchMaximized.checked = settings.window.launchMaximized;
   const alwaysOnTop = document.getElementById("set-always-on-top") as HTMLInputElement;
   alwaysOnTop.checked = settings.window.alwaysOnTop;
+  const rememberFullscreen = document.getElementById("set-remember-fullscreen") as HTMLInputElement;
+  rememberFullscreen.checked = settings.window.rememberFullscreen;
   for (const id of ["set-grid-color", "set-wireframe-color", "set-bbox-color"]) {
     const key = id.replace("set-", "").replace("-color", "Color") as
       | "gridColor" | "wireframeColor" | "bboxColor";
@@ -341,6 +348,7 @@ function showHelp(): void {
   for (const action of HOTKEY_ACTIONS) {
     actions.appendChild(helpRow(action.label(), comboLabel(settings.hotkeys[action.key])));
   }
+  actions.appendChild(helpRow(t("help.siblingModels"), "Left / Right"));
   views.replaceChildren();
   const viewRows: [string, string][] = [
     [t("menu.front"), "Num 1"],
@@ -501,6 +509,14 @@ document.getElementById("set-always-on-top")!.addEventListener("change", async (
   }
 });
 
+document.getElementById("set-remember-fullscreen")!.addEventListener("change", (e) => {
+  const on = (e.target as HTMLInputElement).checked;
+  setSetting("window", "rememberFullscreen", on);
+  // Enabling it mid-session captures the current state right away, so the
+  // next launch matches what is on screen now.
+  if (on) setSetting("window", "fullscreen", fullscreenOn);
+});
+
 // Status bar FPS, refreshed twice a second from the render loop counter.
 const fpsEl = document.getElementById("status-fps")!;
 fpsEl.title = t("status.fps");
@@ -602,6 +618,32 @@ window.addEventListener("drop", (e) => {
 
 let loadingSeq = 0;
 
+/** Absolute path of the currently shown model, when it is known. Only
+ * OS-opened files (Explorer / command line) provide one; dropped and
+ * picked files do not, so Arrow Left / Right folder navigation stays
+ * silent for those. */
+let currentModelPath: string | null = null;
+
+/** Arrow Left / Right: previous / next supported model file in the
+ * current model's folder, wrapping around at both ends. */
+async function switchModel(step: number): Promise<void> {
+  if (!currentModelPath) return;
+  let files: string[];
+  try {
+    files = await invoke<string[]>("list_models", { dir: dirname(currentModelPath) });
+  } catch (err) {
+    console.warn("Could not list the model folder", err);
+    return;
+  }
+  if (files.length === 0) return;
+  const lower = currentModelPath.toLowerCase();
+  const index = files.findIndex((path) => path.toLowerCase() === lower);
+  if (index < 0) return;
+  const next = files[(index + step + files.length) % files.length];
+  if (next === currentModelPath) return;
+  await openPath(next);
+}
+
 /** Entry point for drag&drop and the file dialog. */
 async function openFile(file: File): Promise<void> {
   closeDialogsForModelOpen();
@@ -613,7 +655,9 @@ async function openFile(file: File): Promise<void> {
   setResourceBase("");
   try {
     const buffer = await readFile(file, (p) => setLoading(true, t("status.loadingModel", { name: file.name }), p));
-    await loadModel(buffer, file.name);
+    // Dropped and picked files carry no folder path, so folder navigation
+    // (Arrow Left / Right) is only available for OS-opened models.
+    if (await loadModel(buffer, file.name)) currentModelPath = null;
   } catch (err) {
     handleLoadError(err, file.name);
   }
@@ -637,7 +681,7 @@ async function openPath(path: string): Promise<void> {
     const buffer = await readBodyWithProgress(res, (p) =>
       setLoading(true, t("status.loadingModel", { name }), p),
     );
-    await loadModel(buffer, name);
+    if (await loadModel(buffer, name)) currentModelPath = path;
   } catch (err) {
     handleLoadError(err, name);
   }
@@ -671,7 +715,7 @@ async function readBodyWithProgress(
   return buffer.buffer;
 }
 
-async function loadModel(buffer: ArrayBuffer, name: string): Promise<void> {
+async function loadModel(buffer: ArrayBuffer, name: string): Promise<boolean> {
   const seq = ++loadingSeq;
   // Parsing has no progress events; for very large files say so explicitly,
   // otherwise a long parse looks like a hang.
@@ -683,7 +727,7 @@ async function loadModel(buffer: ArrayBuffer, name: string): Promise<void> {
 
   try {
     const result = await loadFromArrayBuffer(buffer, name);
-    if (seq !== loadingSeq) return; // superseded by another open
+    if (seq !== loadingSeq) return false; // superseded by another open
 
     viewer.setModel(result.object);
     setStatus(
@@ -694,9 +738,11 @@ async function loadModel(buffer: ArrayBuffer, name: string): Promise<void> {
       }),
     );
     document.title = `${name} - ${APP_TITLE}`;
+    return true;
   } catch (err) {
-    if (seq !== loadingSeq) return;
+    if (seq !== loadingSeq) return false;
     handleLoadError(err, name);
+    return false;
   } finally {
     if (seq === loadingSeq) setLoading(false);
   }
@@ -851,6 +897,17 @@ window.addEventListener("keydown", (e) => {
       e.preventDefault();
       viewer.zoomView(1.25);
       return;
+  }
+
+  // Arrow Left / Right: previous / next model in the current model's
+  // folder (fixed binding). With a menu open the keys are consumed by the
+  // menu itself; here they stay inert while the pointer sits on the menu
+  // bar so browsing models cannot start from it.
+  if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+    if ((e.target as HTMLElement | null)?.closest?.("#menubar")) return;
+    e.preventDefault();
+    void switchModel(e.key === "ArrowRight" ? 1 : -1);
+    return;
   }
 
   for (const action of HOTKEY_ACTIONS) {

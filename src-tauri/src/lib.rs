@@ -134,6 +134,12 @@ fn apply_startup_window_state(app: &tauri::App) {
         let _ = window.set_always_on_top(true);
     }
 
+    // Opt-in: keep the fullscreen state across launches. Applied after the
+    // maximize choice, so fullscreen wins when both are enabled.
+    if setting("rememberFullscreen") && setting("fullscreen") {
+        let _ = window.set_fullscreen(true);
+    }
+
     let _ = window.show();
     let _ = window.set_focus();
 }
@@ -161,6 +167,36 @@ fn model_file_from_args(args: &[String]) -> Option<String> {
 fn initial_file() -> Option<String> {
     let args: Vec<String> = std::env::args().collect();
     model_file_from_args(&args)
+}
+
+/// Model files (by extension) in one folder, absolute paths sorted by
+/// file name; backs the Arrow Left / Right "previous / next model in the
+/// folder" navigation.
+#[tauri::command]
+fn list_models(dir: String) -> Vec<String> {
+    let mut paths = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if !path.is_file() {
+                continue;
+            }
+            let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+                continue;
+            };
+            let lower = name.to_lowercase();
+            if MODEL_EXTENSIONS.iter().any(|ext| lower.ends_with(ext)) {
+                paths.push(path.to_string_lossy().into_owned());
+            }
+        }
+    }
+    paths.sort_by_key(|path| {
+        path.rsplit(['\\', '/'])
+            .next()
+            .unwrap_or(path)
+            .to_lowercase()
+    });
+    paths
 }
 
 /// Appends one timestamped ERROR line to a log file. Primary location is
@@ -215,6 +251,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             initial_file,
+            list_models,
             load_settings,
             save_settings,
             log_error,

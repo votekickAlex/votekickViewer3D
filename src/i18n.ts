@@ -53,6 +53,8 @@ export const ENGLISH: Record<string, string> = {
   "settings.window": "Window",
   "settings.launchMaximized": "Launch maximized window",
   "settings.alwaysOnTop": "Always on top",
+
+  "settings.rememberFullscreen": "Remember fullscreen state",
   "settings.colors": "Colors",
   "settings.gridColor": "Grid",
   "settings.wireframeColor": "Wireframe",
@@ -93,6 +95,8 @@ export const ENGLISH: Record<string, string> = {
   "help.flip": "Opposite side",
   "help.orbit": "Orbit",
   "help.zoom": "Zoom",
+
+  "help.siblingModels": "Previous / next model in the folder",
 
   "plugins.title": "Plugins",
   "plugins.todo": "TODO: custom user plugins are planned for a future version.",
