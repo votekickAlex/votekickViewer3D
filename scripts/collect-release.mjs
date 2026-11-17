@@ -24,7 +24,18 @@ const name = "votekickViewer3D";
 
 // --- installer ---
 const nsisDir = path.join(target, "bundle", "nsis");
-const installers = readdirSync(nsisDir).filter((f) => f.endsWith("-setup.exe"));
+const allInstallers = readdirSync(nsisDir).filter((f) => f.endsWith("-setup.exe"));
+// Installers for other versions are stale build cache; shipping them by
+// accident would publish the wrong version, so fail loudly instead.
+const staleInstallers = allInstallers.filter((f) => !f.includes(`_${version}_`));
+if (staleInstallers.length > 0) {
+  console.error(
+    `Stale installers for another version in ${nsisDir}: ${staleInstallers.join(", ")}.` +
+      ` Delete them and rebuild.`,
+  );
+  process.exit(1);
+}
+const installers = allInstallers;
 if (installers.length === 0) {
   console.error("No NSIS installer found in", nsisDir);
   process.exit(1);
