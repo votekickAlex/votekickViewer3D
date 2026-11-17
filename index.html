@@ -16,6 +16,7 @@
         <span class="status-icon" id="st-wireframe" data-icon="hash"></span>
         <span class="status-icon" id="st-bbox" data-icon="square"></span>
         <span class="status-icon" id="st-fullscreen" data-icon="arrows-diagonal"></span>
+        <span id="st-size" hidden></span>
         <span id="st-gridstep" hidden></span>
         <span id="st-axes"><span class="ax" id="ax-x">X</span><span class="ax" id="ax-y">Y</span><span class="ax" id="ax-z">Z</span></span>
         <span id="st-proj"></span>
@@ -56,6 +57,9 @@
               <input type="checkbox" id="set-remember-fullscreen" />
               <span data-i18n="settings.rememberFullscreen">Remember fullscreen state</span>
             </label>
+            <h3 data-i18n="settings.units">Display units</h3>
+            <select id="set-units" class="setting-select"></select>
+            <p class="dialog-note" data-i18n="settings.unitsHint">Model size and grid step readouts. Auto assumes the file unit is a meter (the glTF standard); for unitless formats authored in another unit pick it here. Hotkey M cycles the modes.</p>
             <h3 data-i18n="settings.language">Language</h3>
             <select id="set-language" class="setting-select"></select>
             <p class="dialog-note" data-i18n="settings.languageHint">Custom language: export english.json, copy it, translate, rename to your language and put it back into the lang folder - it appears in this list.</p>
@@ -73,6 +77,11 @@
             <label class="setting-row setting-color">
               <button type="button" class="color-swatch" id="set-bbox-color"></button>
               <span data-i18n="settings.bboxColor">Bounding box</span>
+            </label>
+            <label class="setting-row setting-color">
+              <span data-i18n="settings.axesOpacity">Axes opacity</span>
+              <input type="range" id="set-axes-opacity" min="0" max="100" step="5" />
+              <span id="axes-opacity-value"></span>
             </label>
           </section>
           <section class="settings-pane" data-cat="hotkeys" hidden>

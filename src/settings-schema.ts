@@ -10,6 +10,8 @@ export const DEFAULTS = {
     gridColor: "#b03a3a",
     wireframeColor: "#ffffff",
     bboxColor: "#4f9cf9",
+    // Axis line opacity in percent (Settings > Colors slider).
+    axesOpacity: 100,
   },
   window: {
     launchMaximized: false,
@@ -22,6 +24,10 @@ export const DEFAULTS = {
   general: {
     language: "english",
     recentColors: [] as string[],
+    // Measurement readout unit: auto picks by magnitude assuming the
+    // world unit is a meter; fixed modes for files authored in other
+    // units (OBJ/STL/FBX carry no reliable unit).
+    units: "auto",
   },
   hotkeys: {
     open: "O",
@@ -32,5 +38,6 @@ export const DEFAULTS = {
     interface: "H",
     boundingBox: "B",
     quit: "Q",
+    units: "M",
   },
 };

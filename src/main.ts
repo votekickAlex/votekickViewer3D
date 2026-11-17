@@ -38,6 +38,7 @@ const viewer = new Viewer(viewport);
 
 // Status badges read these; the hex strings mirror the scene constants.
 const gridStepEl = document.getElementById("st-gridstep")!;
+const sizeEl = document.getElementById("st-size")!;
 const axesEl = document.getElementById("st-axes")!;
 const axisEls: Record<"x" | "y" | "z", HTMLElement> = {
   x: document.getElementById("ax-x")!,
@@ -45,14 +46,63 @@ const axisEls: Record<"x" | "y" | "z", HTMLElement> = {
   z: document.getElementById("ax-z")!,
 };
 
-/** Grid step readout (the measurement unit for the model size) and the
- * XYZ axis legend: per-axis colors, gray for the axis the camera looks
- * straight along. */
+const UNIT_MODES = ["auto", "m", "cm", "mm"] as const;
+type UnitMode = (typeof UNIT_MODES)[number];
+
+/** Unit label and world-to-unit factor for one length. Auto picks by
+ * magnitude (world unit assumed to be a meter): 1 m and above shows
+ * meters, 0.01 m and above centimeters, below that millimeters. Fixed
+ * modes serve files authored in another unit (OBJ/STL/FBX carry no
+ * reliable unit information). */
+function unitFor(world: number): { unit: string; factor: number } {
+  const mode = settings.general.units as UnitMode;
+  if (mode === "m") return { unit: "m", factor: 1 };
+  if (mode === "cm") return { unit: "cm", factor: 100 };
+  if (mode === "mm") return { unit: "mm", factor: 1000 };
+  if (world >= 1) return { unit: "m", factor: 1 };
+  if (world >= 0.01) return { unit: "cm", factor: 100 };
+  return { unit: "mm", factor: 1000 };
+}
+
+/** Formats one world-space length, e.g. 2 m, 20 cm, 5 mm. */
+function formatLength(world: number): string {
+  const { unit, factor } = unitFor(world);
+  return `${Number((world * factor).toPrecision(3))} ${unit}`;
+}
+
+/** Formats the model size with one unit for all three dimensions,
+ * picked by the largest one: 2 x 2 x 2 m. */
+function formatSize(size: THREE.Vector3): string {
+  const { unit, factor } = unitFor(Math.max(size.x, size.y, size.z));
+  const dims = [size.x, size.y, size.z].map((v) => Number((v * factor).toPrecision(3)));
+  return `${dims[0]} × ${dims[1]} × ${dims[2]} ${unit}`;
+}
+
+/** Hotkey M: auto -> m -> cm -> mm -> auto. */
+function cycleUnits(): void {
+  const at = UNIT_MODES.indexOf(settings.general.units as UnitMode);
+  const next = UNIT_MODES[(at + 1) % UNIT_MODES.length];
+  setSetting("general", "units", next);
+  updateStatusBadges();
+  // Keep the Settings select in sync while the dialog is open.
+  const select = document.getElementById("set-units") as HTMLSelectElement | null;
+  if (select) select.value = next;
+}
+
+/** Grid step readout (the measurement unit for the model size), the
+ * model size readout and the XYZ axis legend: per-axis colors, gray for
+ * the axis the camera looks straight along. */
 function updateStatusBadges(): void {
+  const size = viewer.modelSize;
+  sizeEl.hidden = !size;
+  if (size) {
+    sizeEl.textContent = formatSize(size);
+    sizeEl.title = t("status.sizeTip");
+  }
   const step = viewer.gridStep;
   gridStepEl.hidden = step === null;
   if (step !== null) {
-    gridStepEl.textContent = `${t("status.gridStep")}: ${step}`;
+    gridStepEl.textContent = `${t("status.gridStep")}: ${formatLength(step)}`;
     gridStepEl.title = t("status.gridStepTip");
   }
   const dim = viewer.dimmedAxis;
@@ -80,6 +130,7 @@ viewer.setBBoxVisible(settings.view.bbox);
 viewer.setGridColor(settings.view.gridColor);
 viewer.setWireframeColor(settings.view.wireframeColor);
 viewer.setBBoxColor(settings.view.bboxColor);
+viewer.setAxesOpacity(settings.view.axesOpacity);
 await setLanguage(settings.general.language);
 
 // Inline the animated line-md icons into every element carrying a
@@ -209,6 +260,7 @@ const HOTKEY_ACTIONS: { key: HotkeyKey; label: () => string; run: () => void }[]
   { key: "grid", label: () => t("hotkeys.grid"), run: toggleGrid },
   { key: "wireframe", label: () => t("hotkeys.wireframe"), run: toggleWireframe },
   { key: "boundingBox", label: () => t("hotkeys.boundingBox"), run: toggleBBox },
+  { key: "units", label: () => t("hotkeys.units"), run: cycleUnits },
   { key: "reset", label: () => t("hotkeys.resetView"), run: () => viewer.frameModel(false) },
   { key: "fullscreen", label: () => t("hotkeys.fullscreen"), run: () => void toggleFullscreen() },
   { key: "interface", label: () => t("hotkeys.interface"), run: toggleInterface },
@@ -359,6 +411,12 @@ function showSettings(): void {
   alwaysOnTop.checked = settings.window.alwaysOnTop;
   const rememberFullscreen = document.getElementById("set-remember-fullscreen") as HTMLInputElement;
   rememberFullscreen.checked = settings.window.rememberFullscreen;
+  const unitsSelect = document.getElementById("set-units") as HTMLSelectElement;
+  unitsSelect.value = settings.general.units;
+  const axesOpacity = document.getElementById("set-axes-opacity") as HTMLInputElement;
+  axesOpacity.value = String(settings.view.axesOpacity);
+  (document.getElementById("axes-opacity-value") as HTMLElement).textContent =
+    `${settings.view.axesOpacity}%`;
   for (const id of ["set-grid-color", "set-wireframe-color", "set-bbox-color"]) {
     const key = id.replace("set-", "").replace("-color", "Color") as
       | "gridColor" | "wireframeColor" | "bboxColor";
@@ -449,6 +507,21 @@ languageSelect.addEventListener("change", () => {
     renderHotkeyRows();
     refreshStatusIcons();
   });
+});
+
+// Display units (Settings > General, hotkey M cycles): affects the model
+// size and grid step readouts only, never the 3D world.
+const unitsSelect = document.getElementById("set-units") as HTMLSelectElement;
+for (const mode of UNIT_MODES) {
+  const option = document.createElement("option");
+  option.value = mode;
+  option.textContent = t(`units.${mode}`);
+  unitsSelect.appendChild(option);
+}
+unitsSelect.value = settings.general.units;
+unitsSelect.addEventListener("change", () => {
+  setSetting("general", "units", unitsSelect.value);
+  updateStatusBadges();
 });
 
 // ---------- menu bar ----------
@@ -548,6 +621,16 @@ document.getElementById("set-remember-fullscreen")!.addEventListener("change", (
   // Enabling it mid-session captures the current state right away, so the
   // next launch matches what is on screen now.
   if (on) setSetting("window", "fullscreen", fullscreenOn);
+});
+
+// Axes opacity slider (Settings > Colors): live preview, persisted.
+const axesOpacityInput = document.getElementById("set-axes-opacity") as HTMLInputElement;
+const axesOpacityValue = document.getElementById("axes-opacity-value")!;
+axesOpacityInput.addEventListener("input", () => {
+  const percent = Number(axesOpacityInput.value);
+  setSetting("view", "axesOpacity", percent);
+  viewer.setAxesOpacity(percent);
+  axesOpacityValue.textContent = `${percent}%`;
 });
 
 // Status bar FPS, refreshed twice a second from the render loop counter.

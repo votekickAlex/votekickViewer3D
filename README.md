@@ -64,6 +64,7 @@ The full list is always available in the app: `F1` or File > Help.
 | `F` | Fullscreen |
 | `H` | Toggle interface (hides everything but the 3D viewport) |
 | `Q` | Quit |
+| `M` | Cycle display units (Auto / m / cm / mm) |
 | `F1` | Help (all hotkeys) |
 | `Left` / `Right` | Previous / next model in the current model's folder |
 
@@ -89,9 +90,12 @@ the same way reset view does.
 
 The same commands are in the View menu.
 
-The status bar shows the grid step (the size of one grid cell, the unit
-for estimating the model size by counting cells) and an XYZ axis legend
-in the axis colors; the axis the camera looks straight along is gray.
+The status bar shows the model size (e.g. 2 x 2 x 2 m) and the grid step
+with units, and an XYZ axis legend in the axis colors; the axis the
+camera looks straight along is the same dark gray as the disabled
+status icons. The unit is picked automatically by scale (a world unit is
+assumed to be a meter, the glTF standard) or fixed in Settings > General
+> Display units (hotkey `M` cycles the modes).
 
 ### Menu bar, settings and languages
 
@@ -101,7 +105,8 @@ in the axis colors; the axis the camera looks straight along is gray.
   checkmark.
 - **Tools**: Settings, Plugins (a stub for a future plugin system).
 - **Settings** has three categories: General (launch maximized, always on
-  top, language), Colors (grid, wireframe, bounding box) and Hotkeys.
+  top, language, display units), Colors (grid, wireframe, bounding box,
+  axes opacity) and Hotkeys.
 - **Languages**: plain JSON files. On first launch
   `english.json` is created in `%APPDATA%\votekickViewer3D\lang`; copy it,
   translate, rename to your language, put it back and it appears in the

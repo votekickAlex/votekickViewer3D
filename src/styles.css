@@ -215,6 +215,7 @@ button:focus-visible {
 #status-fps,
 #status-version,
 #st-proj,
+#st-size,
 #st-gridstep,
 #st-axes {
   font-size: 11px;
@@ -226,11 +227,16 @@ button:focus-visible {
   text-align: right;
 }
 
-/* Grid step readout (the measurement unit for the model size) and the
- * XYZ axis legend; letters are colored per axis from main.ts, a gray
- * letter marks the axis the camera looks straight along. */
+/* Model size and grid step readouts (the measurement unit for the model
+ * size) and the XYZ axis legend; letters are colored per axis from
+ * main.ts, a gray letter marks the axis the camera looks straight along. */
+#st-size {
+  min-width: 118px;
+  text-align: right;
+}
+
 #st-gridstep {
-  min-width: 70px;
+  min-width: 74px;
   text-align: right;
 }
 
@@ -737,6 +743,19 @@ dialog h3:first-child {
   padding: 5px 10px;
   border-radius: 5px;
   min-width: 180px;
+}
+
+/* axes opacity slider (Settings > Colors) */
+
+#set-axes-opacity {
+  accent-color: var(--accent);
+  width: 130px;
+}
+
+#axes-opacity-value {
+  min-width: 38px;
+  text-align: right;
+  color: var(--text-dim);
 }
 
 .hotkey-row {

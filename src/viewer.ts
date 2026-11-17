@@ -33,8 +33,9 @@ function parseHexColor(hex: string): { color: THREE.Color; alpha: number } {
 const AXIS_X_COLOR = 0xd95454;
 const AXIS_Y_COLOR = 0x4a90d9;
 const AXIS_Z_COLOR = 0x5aa02c;
-/** An axis the camera looks straight along is drawn in this gray. */
-const AXIS_DIM_COLOR = 0x808690;
+/** An axis the camera looks straight along is drawn in this gray: the
+ * same dark gray as the grid center lines, so it reads as disabled. */
+const AXIS_DIM_COLOR = 0x565d68;
 
 /** Hex colors of the status bar XYZ readout, mirroring the scene
  * constants so the letters always match the gizmo lines. */
@@ -64,6 +65,8 @@ export class Viewer {
   private readonly axesGroup = new THREE.Group();
   private axisMaterials: THREE.LineBasicMaterial[] = [];
   private axisDim: "x" | "y" | "z" | null = null;
+  /** Axis line opacity, 0-1 (Settings > Colors slider). */
+  private axesOpacity = 1;
   /** Set by main.ts: notified when the dimmed axis changes, so the
    * status bar XYZ readout recolors in the same frame as the gizmo. */
   onAxisDimChange: ((axis: "x" | "y" | "z" | null) => void) | null = null;
@@ -266,7 +269,24 @@ export class Viewer {
     this.axesGroup.add(line(new THREE.Vector3(1, 0, 0), AXIS_X_COLOR));
     this.axesGroup.add(line(new THREE.Vector3(0, 1, 0), AXIS_Y_COLOR));
     this.axesGroup.add(line(new THREE.Vector3(0, 0, 1), AXIS_Z_COLOR));
+    this.setAxesOpacity(this.axesOpacity * 100);
     this.applyAxisDim();
+  }
+
+  /** Opacity of the axis lines (Settings > Colors, 0-100). Applied to
+   * the existing materials, no rebuild needed. */
+  setAxesOpacity(percent: number): void {
+    const alpha = Math.min(Math.max(percent, 0), 100) / 100;
+    this.axesOpacity = alpha;
+    for (const material of this.axisMaterials) {
+      if (alpha < 1) {
+        material.transparent = true;
+        material.opacity = alpha;
+      } else {
+        material.transparent = false;
+        material.opacity = 1;
+      }
+    }
   }
 
   /** Disposes the geometries and materials of every line in a group (the
@@ -605,6 +625,14 @@ export class Viewer {
    * the status bar shows it as the measurement unit for the model size. */
   get gridStep(): number | null {
     return this.grid.visible ? this.gridCell : null;
+  }
+
+  /** Bounding box size of the loaded model in world units, null when no
+   * model (the status bar measurement readout). The Box3 is already
+   * maintained for the bbox helper, so this is traversal-free. */
+  get modelSize(): THREE.Vector3 | null {
+    if (this.bbox.isEmpty()) return null;
+    return this.bbox.getSize(new THREE.Vector3());
   }
 
   /** Rebuilds the grid with a new color (Settings > Colors); visibility

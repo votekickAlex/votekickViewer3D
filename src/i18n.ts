@@ -43,6 +43,9 @@ export const ENGLISH: Record<string, string> = {
 
   "status.gridStepTip": "Size of one grid cell; count cells to estimate the model size",
 
+  "status.sizeTip":
+    "Bounding box size of the model in the display unit; the world unit is assumed to be a meter unless another unit is picked in Settings",
+
   "status.axes": "World axes; the axis the camera looks straight along is gray",
   "status.loading": "Loading…",
   "status.loadingModel": "Loading {name}…",
@@ -61,6 +64,21 @@ export const ENGLISH: Record<string, string> = {
   "settings.alwaysOnTop": "Always on top",
 
   "settings.rememberFullscreen": "Remember fullscreen state",
+
+  "settings.units": "Display units",
+
+  "settings.unitsHint":
+    "Model size and grid step readouts. Auto assumes the file unit is a meter (the glTF standard); for unitless formats authored in another unit pick it here. Hotkey M cycles the modes.",
+
+  "settings.axesOpacity": "Axes opacity",
+
+  "units.auto": "Auto (by scale)",
+
+  "units.m": "Meters",
+
+  "units.cm": "Centimeters",
+
+  "units.mm": "Millimeters",
   "settings.colors": "Colors",
   "settings.gridColor": "Grid",
   "settings.wireframeColor": "Wireframe",
@@ -86,7 +104,10 @@ export const ENGLISH: Record<string, string> = {
   "hotkeys.grid": "Grid",
   "hotkeys.wireframe": "Wireframe",
   "hotkeys.resetView": "Reset view",
+
   "hotkeys.fullscreen": "Full screen",
+
+  "hotkeys.units": "Cycle display units",
   "hotkeys.interface": "Interface",
   "hotkeys.boundingBox": "Bounding box",
   "hotkeys.quit": "Quit",
