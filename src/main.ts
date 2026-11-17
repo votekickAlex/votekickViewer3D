@@ -72,11 +72,16 @@ function formatLength(world: number): string {
 }
 
 /** Formats the model size with one unit for all three dimensions,
- * picked by the largest one: 2 x 2 x 2 m. */
-function formatSize(size: THREE.Vector3): string {
+ * picked by the largest one; each dimension number is colored like its
+ * axis so it is clear which dimension is which. Returns HTML. */
+function formatSizeHtml(size: THREE.Vector3): string {
   const { unit, factor } = unitFor(Math.max(size.x, size.y, size.z));
-  const dims = [size.x, size.y, size.z].map((v) => Number((v * factor).toPrecision(3)));
-  return `${dims[0]} × ${dims[1]} × ${dims[2]} ${unit}`;
+  const dim = (v: number, color: string) =>
+    `<span style="color:${color}">${Number((v * factor).toPrecision(3))}</span>`;
+  return (
+    `${dim(size.x, AXIS_COLOR_HEX.x)} × ${dim(size.y, AXIS_COLOR_HEX.y)}` +
+    ` × ${dim(size.z, AXIS_COLOR_HEX.z)} ${unit}`
+  );
 }
 
 /** Hotkey M: auto -> m -> cm -> mm -> auto. */
@@ -98,7 +103,7 @@ function updateStatusBadges(): void {
   const size = viewer.modelSize;
   sizeEl.hidden = !size;
   if (size) {
-    sizeEl.textContent = formatSize(size);
+    sizeEl.innerHTML = formatSizeHtml(size);
     sizeEl.title = t("status.sizeTip");
   }
   const mode = settings.general.units;

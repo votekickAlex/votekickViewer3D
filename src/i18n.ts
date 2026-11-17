@@ -47,7 +47,7 @@ export const ENGLISH: Record<string, string> = {
     "Display unit mode for the size and grid step readouts; hotkey M cycles Auto / m / cm / mm",
 
   "status.sizeTip":
-    "Bounding box size of the model in the display unit; the world unit is assumed to be a meter unless another unit is picked in Settings",
+    "Bounding box size of the model in the display unit, each dimension colored like its axis; the world unit is assumed to be a meter unless another unit is picked in Settings",
 
   "status.axes": "World axes; the axis the camera looks straight along is gray",
   "status.loading": "Loading…",

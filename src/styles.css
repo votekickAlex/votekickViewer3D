@@ -220,14 +220,27 @@ button:focus-visible {
 #st-proj,
 #st-units,
 #st-gridstep,
-#st-axes {
+#st-axes,
+#st-size,
+.status-sep {
   font-size: 11px;
   color: var(--text-dim);
 }
 
-#st-proj {
-  min-width: 92px;
-  text-align: right;
+/* middot separators between the right side readouts: every block gets
+ * the same cluster gap on both sides of its dot */
+.status-sep {
+  opacity: 0.55;
+}
+
+.status-sep::before {
+  content: "\00B7";
+}
+
+/* when the grid step hides (grid off) its trailing separator hides too,
+ * so no double dots are left behind */
+#st-gridstep[hidden] + .status-sep {
+  display: none;
 }
 
 /* Model size readout on the left, next to the file stats; the grid step
@@ -238,16 +251,6 @@ button:focus-visible {
   flex: none;
   margin-left: 10px;
   white-space: nowrap;
-}
-
-#st-units {
-  min-width: 34px;
-  text-align: right;
-}
-
-#st-gridstep {
-  min-width: 74px;
-  text-align: right;
 }
 
 #st-axes {
