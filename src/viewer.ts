@@ -235,7 +235,7 @@ export class Viewer {
    * the axis lines, which span the grid. */
   private rebuildGrid(): void {
     const visible = this.grid.visible;
-    this.disposeLines(this.grid);
+    this.disposeGrid();
     this.grid = this.createGrid(this.gridHex, this.gridCell);
     this.grid.visible = visible;
     this.scene.add(this.grid);
@@ -283,6 +283,15 @@ export class Viewer {
         material.opacity = 1;
       }
     }
+  }
+
+  /** Removes the grid group from the scene, then disposes its lines:
+   * a disposed-but-still-parented object keeps rendering (three.js
+   * re-uploads the buffers on the next frame), so the removal must
+   * happen before the new grid takes its place. */
+  private disposeGrid(): void {
+    this.scene.remove(this.grid);
+    this.disposeLines(this.grid);
   }
 
   /** Disposes the geometries and materials of every line in a group (the
@@ -636,7 +645,7 @@ export class Viewer {
   setGridColor(hex: string): void {
     this.gridHex = hex;
     const visible = this.grid.visible;
-    this.disposeLines(this.grid);
+    this.disposeGrid();
     this.grid = this.createGrid(hex, this.gridCell);
     this.grid.visible = visible;
     this.scene.add(this.grid);
