@@ -215,7 +215,7 @@ button:focus-visible {
 #status-fps,
 #status-version,
 #st-proj,
-#st-size,
+#st-units,
 #st-gridstep,
 #st-axes {
   font-size: 11px;
@@ -227,11 +227,17 @@ button:focus-visible {
   text-align: right;
 }
 
-/* Model size and grid step readouts (the measurement unit for the model
- * size) and the XYZ axis legend; letters are colored per axis from
- * main.ts, a gray letter marks the axis the camera looks straight along. */
+/* Model size readout on the left, next to the file stats; the grid step
+ * and the active unit mode sit on the right (the measurement unit for
+ * the model size), plus the XYZ axis legend: letters are colored per
+ * axis from main.ts, a dimmed letter matches the disabled status icons. */
 #st-size {
-  min-width: 118px;
+  margin-left: 10px;
+  white-space: nowrap;
+}
+
+#st-units {
+  min-width: 34px;
   text-align: right;
 }
 

@@ -43,6 +43,9 @@ export const ENGLISH: Record<string, string> = {
 
   "status.gridStepTip": "Size of one grid cell; count cells to estimate the model size",
 
+  "status.unitsTip":
+    "Display unit mode for the size and grid step readouts; hotkey M cycles Auto / m / cm / mm",
+
   "status.sizeTip":
     "Bounding box size of the model in the display unit; the world unit is assumed to be a meter unless another unit is picked in Settings",
 
@@ -73,6 +76,8 @@ export const ENGLISH: Record<string, string> = {
   "settings.axesOpacity": "Axes opacity",
 
   "units.auto": "Auto (by scale)",
+
+  "units.autoShort": "Auto",
 
   "units.m": "Meters",
 

@@ -38,12 +38,13 @@ const AXIS_Z_COLOR = 0x5aa02c;
 const AXIS_DIM_COLOR = 0x565d68;
 
 /** Hex colors of the status bar XYZ readout, mirroring the scene
- * constants so the letters always match the gizmo lines. */
+ * constants so the letters always match the gizmo lines. A dimmed
+ * letter is styled like the disabled status icons in main.ts instead
+ * (text color at 30% opacity), so no hex is needed for it here. */
 export const AXIS_COLOR_HEX = {
   x: "#d95454",
   y: "#4a90d9",
   z: "#5aa02c",
-  dim: "#808690",
 } as const;
 
 export class Viewer {
@@ -222,17 +223,10 @@ export class Viewer {
       mat.opacity = alpha;
     }
     grid.renderOrder = 10;
-    // Repaint the two center lines through the origin: X red, Z green
-    // (Blender's ground plane axes). For GridHelper(N, N) the line block
-    // i occupies vertices 4i..4i+3: 4i/4i+1 are the line along X,
-    // 4i+2/4i+3 the line along Z, so the center block starts at
-    // 4 * (N / 2).
-    const base = 4 * (Viewer.GRID_CELLS / 2);
-    const colors = grid.geometry.getAttribute("color") as THREE.BufferAttribute;
-    const red = new THREE.Color(AXIS_X_COLOR);
-    const green = new THREE.Color(AXIS_Z_COLOR);
-    for (const v of [base, base + 1]) colors.setXYZ(v, red.r, red.g, red.b);
-    for (const v of [base + 2, base + 3]) colors.setXYZ(v, green.r, green.g, green.b);
+    // The two center lines through the origin stay the plain center
+    // color: the separate axis lines (renderOrder 11) draw over them in
+    // X red / Z green, so the Axes opacity slider fades the real
+    // center lines instead of revealing opaque copies underneath.
     group.add(grid);
     return group;
   }
@@ -263,7 +257,9 @@ export class Viewer {
         dir.clone().multiplyScalar(halfExtent),
       ]);
       const l = new THREE.Line(geo, material);
-      l.renderOrder = 10;
+      // Drawn after the grid (renderOrder 10): the axis lines are the
+      // colored center lines through the origin.
+      l.renderOrder = 11;
       return l;
     };
     this.axesGroup.add(line(new THREE.Vector3(1, 0, 0), AXIS_X_COLOR));

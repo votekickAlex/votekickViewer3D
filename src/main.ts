@@ -39,6 +39,7 @@ const viewer = new Viewer(viewport);
 // Status badges read these; the hex strings mirror the scene constants.
 const gridStepEl = document.getElementById("st-gridstep")!;
 const sizeEl = document.getElementById("st-size")!;
+const unitsEl = document.getElementById("st-units")!;
 const axesEl = document.getElementById("st-axes")!;
 const axisEls: Record<"x" | "y" | "z", HTMLElement> = {
   x: document.getElementById("ax-x")!,
@@ -90,8 +91,9 @@ function cycleUnits(): void {
 }
 
 /** Grid step readout (the measurement unit for the model size), the
- * model size readout and the XYZ axis legend: per-axis colors, gray for
- * the axis the camera looks straight along. */
+ * model size readout, the active unit mode and the XYZ axis legend:
+ * per-axis colors; the dimmed letter is styled exactly like the
+ * disabled status icons (plain text color at 30% opacity). */
 function updateStatusBadges(): void {
   const size = viewer.modelSize;
   sizeEl.hidden = !size;
@@ -99,6 +101,9 @@ function updateStatusBadges(): void {
     sizeEl.textContent = formatSize(size);
     sizeEl.title = t("status.sizeTip");
   }
+  const mode = settings.general.units;
+  unitsEl.textContent = mode === "auto" ? t("units.autoShort") : mode;
+  unitsEl.title = t("status.unitsTip");
   const step = viewer.gridStep;
   gridStepEl.hidden = step === null;
   if (step !== null) {
@@ -107,7 +112,16 @@ function updateStatusBadges(): void {
   }
   const dim = viewer.dimmedAxis;
   for (const axis of ["x", "y", "z"] as const) {
-    axisEls[axis].style.color = dim === axis ? AXIS_COLOR_HEX.dim : AXIS_COLOR_HEX[axis];
+    const el = axisEls[axis];
+    if (dim === axis) {
+      // Same recipe as the disabled .status-icon entries: text color at
+      // 30% opacity over the panel background.
+      el.style.color = "var(--text)";
+      el.style.opacity = "0.3";
+    } else {
+      el.style.color = AXIS_COLOR_HEX[axis];
+      el.style.opacity = "";
+    }
   }
   axesEl.title = t("status.axes");
 }
