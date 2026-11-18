@@ -31,6 +31,8 @@ export const ENGLISH: Record<string, string> = {
   "menu.right": "Right",
   "menu.top": "Top",
   "menu.bottom": "Bottom",
+  "menu.playPause": "Play / pause animation",
+  "menu.nextClip": "Next animation clip",
   "menu.about": "About",
 
   "about.version": "Version {version}",
@@ -50,6 +52,13 @@ export const ENGLISH: Record<string, string> = {
     "Bounding box size of the model, each dimension colored like its axis; Auto mode shows plain numbers scaled by magnitude (the world unit is assumed to be a meter) unless another unit is picked in Settings",
 
   "status.axes": "World axes; the axis the camera looks straight along is gray",
+
+  "status.animPlaying": "playing",
+  "status.animPaused": "paused",
+  "status.animTip": "Animation {name} ({state}). Space pauses / resumes the clip.",
+  "status.animTipMulti":
+    "Animation {name} ({state}) of {count} clips. Click to switch clips, Space pauses / resumes.",
+
   "status.loading": "Loading…",
   "status.loadingModel": "Loading {name}…",
   "status.parsing": "Parsing {name} - this can take a while for very large models…",
@@ -113,6 +122,7 @@ export const ENGLISH: Record<string, string> = {
   "hotkeys.fullscreen": "Full screen",
 
   "hotkeys.units": "Cycle display units",
+  "hotkeys.playPause": "Play / pause animation",
   "hotkeys.interface": "Interface",
   "hotkeys.boundingBox": "Bounding box",
   "hotkeys.quit": "Quit",

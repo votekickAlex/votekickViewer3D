@@ -39,5 +39,6 @@ export const DEFAULTS = {
     boundingBox: "B",
     quit: "Q",
     units: "M",
+    playPause: "Space",
   },
 };

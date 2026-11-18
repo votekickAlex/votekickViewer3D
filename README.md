@@ -65,6 +65,7 @@ The full list is always available in the app: `F1` or File > Help.
 | `H` | Toggle interface (hides everything but the 3D viewport) |
 | `Q` | Quit |
 | `M` | Cycle display units (Auto / m / cm / mm) |
+| `Space` | Play / pause animation |
 | `F1` | Help (all hotkeys) |
 | `Left` / `Right` | Previous / next model in the current model's folder |
 
@@ -89,6 +90,10 @@ the same way reset view does.
 | `Num +` / `Num -` | Zoom |
 
 The same commands are in the View menu.
+
+Animated models (GLB/glTF, FBX, DAE) play their first clip automatically
+on open. `Space` pauses or resumes it; with several clips use View > Next
+animation clip or click the clip name in the status bar.
 
 The status bar shows the model size with units (e.g. 2 x 2 x 2 m, each
 dimension number colored like its axis) on the left next to the file

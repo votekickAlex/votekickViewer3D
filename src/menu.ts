@@ -24,7 +24,8 @@ export interface MenuItemDef {
 
 export interface MenuDef {
   label: string | (() => string);
-  items?: MenuItemDef[];
+  /** Menu rows; a getter lets the set of rows depend on the loaded model. */
+  items?: MenuItemDef[] | (() => MenuItemDef[]);
   /** When set, the top-level button runs this action directly and has no
    * dropdown (e.g. About). */
   action?: () => void;
@@ -74,7 +75,8 @@ export function createMenuBar(
   const buildDropdown = (def: MenuDef): HTMLElement => {
     const dropdown = document.createElement("div");
     dropdown.className = "menu-dropdown";
-    for (const item of def.items ?? []) {
+    const defItems = typeof def.items === "function" ? def.items() : (def.items ?? []);
+    for (const item of defItems) {
       if (item.separator) {
         const sep = document.createElement("div");
         sep.className = "menu-separator";
@@ -149,8 +151,13 @@ export function createMenuBar(
         case " ":
           if (index >= 0) {
             e.preventDefault();
+            e.stopPropagation();
             closeAll();
-            def.items?.[index]?.action?.();
+            // DOM rows skip separators; align by filtered definitions so
+            // keyboard activation targets the same item the pointer sees.
+            const rows = (typeof def.items === "function" ? def.items() : (def.items ?? []))
+              .filter((item) => !item.separator);
+            rows[index]?.action?.();
           }
           break;
         case "Escape": {
@@ -222,6 +229,7 @@ export function createMenuBar(
         button.addEventListener("keydown", (e) => {
           if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
             e.preventDefault();
+            e.stopPropagation();
             openMenu(button, def);
             focusFirstItem();
           }

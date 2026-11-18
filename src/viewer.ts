@@ -71,6 +71,16 @@ export class Viewer {
   /** Set by main.ts: notified when the dimmed axis changes, so the
    * status bar XYZ readout recolors in the same frame as the gizmo. */
   onAxisDimChange: ((axis: "x" | "y" | "z" | null) => void) | null = null;
+  /** Animation clips from the current model (GLB/GLTF/FBX/DAE). */
+  private clips: THREE.AnimationClip[] = [];
+  private mixer: THREE.AnimationMixer | null = null;
+  private action: THREE.AnimationAction | null = null;
+  private clipIndex = -1;
+  private animPaused = false;
+  /** Time source for the mixer: only advances while not paused. */
+  private readonly animClock = new THREE.Clock();
+  /** Set by main.ts to refresh the animation status readout. */
+  onAnimationChange: (() => void) | null = null;
   private modelRoot: THREE.Group;
   private wireframe = false;
   /** Shared material for the wireframe overlay: one flat, user-colored
@@ -169,6 +179,10 @@ export class Viewer {
     this.renderer.setAnimationLoop(() => {
       this.controls.update();
       this.updateAxisDim();
+      // Consume the delta every frame so resuming never jumps forward by
+      // the whole pause duration; timeScale = 0 freezes the mixer itself.
+      const delta = Math.min(this.animClock.getDelta(), 0.1);
+      if (this.mixer) this.mixer.update(delta);
       this.renderer.render(this.scene, this.activeCamera);
       this.frames++;
       const now = performance.now();
@@ -343,7 +357,8 @@ export class Viewer {
     this.axesGroup.visible = visible;
   }
 
-  setModel(object: THREE.Object3D): void {
+  setModel(object: THREE.Object3D, clips: THREE.AnimationClip[] = []): void {
+    this.stopAnimation();
     this.disposeModel();
     this.modelRoot.add(object);
     this.applyWireframe();
@@ -354,16 +369,88 @@ export class Viewer {
     this.camera.up.set(0, 1, 0);
     this.orthoCamera.up.set(0, 1, 0);
     this.frameModel(true);
+    // Bind and auto-play the first animation clip, if the file has any.
+    this.clips = clips;
+    if (clips.length > 0) {
+      this.mixer = new THREE.AnimationMixer(object);
+      this.animClock.getDelta(); // drop the time spent loading/parsing
+      this.playClip(0);
+    }
+    this.onAnimationChange?.();
   }
 
   clearModel(): void {
+    this.stopAnimation();
     this.disposeModel();
     this.refreshBBox();
+    this.onAnimationChange?.();
     // Back to the default one-unit grid for the empty scene.
     if (this.gridCell !== 1) {
       this.gridCell = 1;
       this.rebuildGrid();
     }
+  }
+
+  // ---------- animation playback ----------
+
+  /** Names of the loaded clips, in file order. */
+  get animationClipNames(): string[] {
+    return this.clips.map((clip) => clip.name);
+  }
+
+  get animationIndex(): number {
+    return this.clipIndex;
+  }
+
+  get animationPaused(): boolean {
+    return this.animPaused;
+  }
+
+  get animationTime(): number {
+    return this.action?.time ?? 0;
+  }
+
+  /** Space: pause/resume the active clip. No-op without animations.
+   * timeScale = 0 freezes the mixer even if something else updates it. */
+  toggleAnimationPause(): void {
+    if (!this.mixer) return;
+    this.animPaused = !this.animPaused;
+    this.mixer.timeScale = this.animPaused ? 0 : 1;
+    this.onAnimationChange?.();
+  }
+
+  /** Select a clip by index, wrapping around. Starts it from the
+   * beginning and plays it. */
+  setAnimationClip(index: number): void {
+    if (this.clips.length === 0) return;
+    const next = ((index % this.clips.length) + this.clips.length) % this.clips.length;
+    if (!this.mixer || next === this.clipIndex) return;
+    this.playClip(next);
+    this.onAnimationChange?.();
+  }
+
+  /** Next clip (cycles through all of them). */
+  nextAnimationClip(): void {
+    this.setAnimationClip(this.clipIndex + 1);
+  }
+
+  private playClip(index: number): void {
+    if (!this.mixer) return;
+    this.action?.stop();
+    this.mixer.timeScale = 1;
+    this.action = this.mixer.clipAction(this.clips[index]);
+    this.action.reset().play();
+    this.clipIndex = index;
+    this.animPaused = false;
+  }
+
+  private stopAnimation(): void {
+    this.mixer?.stopAllAction();
+    this.mixer = null;
+    this.action = null;
+    this.clips = [];
+    this.clipIndex = -1;
+    this.animPaused = false;
   }
 
   frameModel(resetAngle = false): void {

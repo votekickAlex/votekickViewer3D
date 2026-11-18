@@ -4,7 +4,7 @@ import { Viewer, AXIS_COLOR_HEX } from "./viewer";
 import { isSupportedFile, loadFromArrayBuffer, setResourceBase, SUPPORTED_EXTENSIONS } from "./loader";
 import { loadSettings, saveSettingsSoon, setSetting, settings, type AppSettings } from "./settings";
 import { DEFAULTS } from "./settings-schema";
-import { createMenuBar, type MenuDef } from "./menu";
+import { createMenuBar, type MenuDef, type MenuItemDef } from "./menu";
 import { currentLanguage, englishTemplate, setLanguage, t } from "./i18n";
 import { iconSvg } from "./icons";
 import { openColorPicker } from "./colorpicker";
@@ -40,6 +40,7 @@ const viewer = new Viewer(viewport);
 const gridStepEl = document.getElementById("st-gridstep")!;
 const sizeEl = document.getElementById("st-size")!;
 const unitsEl = document.getElementById("st-units")!;
+const animEl = document.getElementById("st-anim")!;
 const axesEl = document.getElementById("st-axes")!;
 const axisEls: Record<"x" | "y" | "z", HTMLElement> = {
   x: document.getElementById("ax-x")!,
@@ -97,6 +98,21 @@ function cycleUnits(): void {
   // Keep the Settings select in sync while the dialog is open.
   const select = document.getElementById("set-units") as HTMLSelectElement | null;
   if (select) select.value = next;
+}
+
+/** Animation readout on the left, next to the model stats: the active
+ * clip name, a paused marker, and a tooltip with the Space hint. */
+function updateAnimationBadge(): void {
+  const names = viewer.animationClipNames;
+  animEl.hidden = names.length === 0;
+  if (names.length === 0) return;
+  const name = names[viewer.animationIndex] ?? "";
+  const state = viewer.animationPaused ? t("status.animPaused") : t("status.animPlaying");
+  animEl.textContent = viewer.animationPaused ? `${name} (${state})` : name;
+  animEl.title =
+    names.length > 1
+      ? t("status.animTipMulti", { name, state, count: names.length })
+      : t("status.animTip", { name, state });
 }
 
 /** Grid step readout (the measurement unit for the model size), the
@@ -284,6 +300,7 @@ const HOTKEY_ACTIONS: { key: HotkeyKey; label: () => string; run: () => void }[]
   { key: "wireframe", label: () => t("hotkeys.wireframe"), run: toggleWireframe },
   { key: "boundingBox", label: () => t("hotkeys.boundingBox"), run: toggleBBox },
   { key: "units", label: () => t("hotkeys.units"), run: cycleUnits },
+  { key: "playPause", label: () => t("hotkeys.playPause"), run: () => viewer.toggleAnimationPause() },
   { key: "reset", label: () => t("hotkeys.resetView"), run: () => viewer.frameModel(false) },
   { key: "fullscreen", label: () => t("hotkeys.fullscreen"), run: () => void toggleFullscreen() },
   { key: "interface", label: () => t("hotkeys.interface"), run: toggleInterface },
@@ -305,6 +322,7 @@ const MOUSE_BUTTON_NAMES = [
  * (e.key): Russian and English layouts must produce the same combination -
  * this app is English-only by design. */
 function keyLabel(e: KeyboardEvent): string {
+  if (e.code === "Space") return "Space";
   const letter = /^Key([A-Z])$/.exec(e.code);
   if (letter) return letter[1];
   const digit = /^Digit([0-9])$/.exec(e.code);
@@ -564,23 +582,39 @@ const menus: MenuDef[] = [
   {
     label: () => t("menu.view"),
     icon: "image",
-    items: [
-      { label: () => t("menu.resetView"), hint: () => settings.hotkeys.reset, icon: "compass", action: () => viewer.frameModel(false) },
-      { label: () => t("menu.orthographic"), hint: "Num 5", checked: () => viewer.orthographic, action: toggleOrtho },
-      { separator: true },
-      { label: () => t("menu.front"), hint: "Num 1", action: () => viewer.setViewPreset("front") },
-      { label: () => t("menu.back"), hint: "Ctrl+Num 1", action: () => viewer.setViewPreset("back") },
-      { label: () => t("menu.left"), hint: "Ctrl+Num 3", action: () => viewer.setViewPreset("left") },
-      { label: () => t("menu.right"), hint: "Num 3", action: () => viewer.setViewPreset("right") },
-      { label: () => t("menu.top"), hint: "Num 7", action: () => viewer.setViewPreset("top") },
-      { label: () => t("menu.bottom"), hint: "Ctrl+Num 7", action: () => viewer.setViewPreset("bottom") },
-      { separator: true },
-      { label: () => t("menu.grid"), hint: () => settings.hotkeys.grid, checked: () => viewer.gridVisible, icon: "grid-3", action: toggleGrid },
-      { label: () => t("menu.wireframe"), hint: () => settings.hotkeys.wireframe, checked: () => viewer.wireframeOn, icon: "hash", action: toggleWireframe },
-      { label: () => t("menu.boundingBox"), hint: () => settings.hotkeys.boundingBox, checked: () => viewer.bboxVisible, icon: "square", action: toggleBBox },
-      { label: () => t("menu.fullscreen"), hint: () => settings.hotkeys.fullscreen, checked: () => fullscreenOn, icon: "arrows-diagonal", action: () => void toggleFullscreen() },
-      { label: () => t("menu.interface"), hint: () => settings.hotkeys.interface, checked: () => !uiHidden, icon: "monitor-screenshot", action: toggleInterface },
-    ],
+    items: () => {
+      const items: MenuItemDef[] = [
+        { label: () => t("menu.resetView"), hint: () => settings.hotkeys.reset, icon: "compass", action: () => viewer.frameModel(false) },
+        { label: () => t("menu.orthographic"), hint: "Num 5", checked: () => viewer.orthographic, action: toggleOrtho },
+        { separator: true },
+        { label: () => t("menu.front"), hint: "Num 1", action: () => viewer.setViewPreset("front") },
+        { label: () => t("menu.back"), hint: "Ctrl+Num 1", action: () => viewer.setViewPreset("back") },
+        { label: () => t("menu.left"), hint: "Ctrl+Num 3", action: () => viewer.setViewPreset("left") },
+        { label: () => t("menu.right"), hint: "Num 3", action: () => viewer.setViewPreset("right") },
+        { label: () => t("menu.top"), hint: "Num 7", action: () => viewer.setViewPreset("top") },
+        { label: () => t("menu.bottom"), hint: "Ctrl+Num 7", action: () => viewer.setViewPreset("bottom") },
+        { separator: true },
+        { label: () => t("menu.grid"), hint: () => settings.hotkeys.grid, checked: () => viewer.gridVisible, icon: "grid-3", action: toggleGrid },
+        { label: () => t("menu.wireframe"), hint: () => settings.hotkeys.wireframe, checked: () => viewer.wireframeOn, icon: "hash", action: toggleWireframe },
+        { label: () => t("menu.boundingBox"), hint: () => settings.hotkeys.boundingBox, checked: () => viewer.bboxVisible, icon: "square", action: toggleBBox },
+        { label: () => t("menu.fullscreen"), hint: () => settings.hotkeys.fullscreen, checked: () => fullscreenOn, icon: "arrows-diagonal", action: () => void toggleFullscreen() },
+        { label: () => t("menu.interface"), hint: () => settings.hotkeys.interface, checked: () => !uiHidden, icon: "monitor-screenshot", action: toggleInterface },
+      ];
+      // Animation rows exist only while the loaded model has clips.
+      if (viewer.animationClipNames.length > 0) {
+        items.push({ separator: true });
+        items.push({
+          label: () => t("menu.playPause"),
+          hint: () => settings.hotkeys.playPause,
+          checked: () => !viewer.animationPaused,
+          action: () => viewer.toggleAnimationPause(),
+        });
+        if (viewer.animationClipNames.length > 1) {
+          items.push({ label: () => t("menu.nextClip"), action: () => viewer.nextAnimationClip() });
+        }
+      }
+      return items;
+    },
   },
   {
     label: () => t("menu.tools"),
@@ -598,6 +632,15 @@ const menus: MenuDef[] = [
 ];
 
 const menuBar = createMenuBar(document.getElementById("menubar")!, menus);
+
+// The animation readout follows clip changes and play/pause edits.
+viewer.onAnimationChange = () => {
+  updateAnimationBadge();
+  menuBar.refreshOpenMenu();
+};
+updateAnimationBadge();
+// With several clips the badge also acts as a "next clip" button.
+animEl.addEventListener("click", () => viewer.nextAnimationClip());
 
 // Initial status bar: View state icons and the app version.
 refreshStatusIcons();
@@ -868,7 +911,7 @@ async function loadModel(buffer: ArrayBuffer, name: string): Promise<boolean> {
     const result = await loadFromArrayBuffer(buffer, name);
     if (seq !== loadingSeq) return false; // superseded by another open
 
-    viewer.setModel(result.object);
+    viewer.setModel(result.object, result.animations);
     setStatus(
       t("status.info", {
         name,

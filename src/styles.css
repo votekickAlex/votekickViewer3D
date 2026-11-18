@@ -222,6 +222,7 @@ button:focus-visible {
 #st-gridstep,
 #st-axes,
 #st-size,
+#st-anim,
 .status-sep {
   font-size: 11px;
   color: var(--text-dim);
@@ -251,6 +252,14 @@ button:focus-visible {
   flex: none;
   margin-left: 10px;
   white-space: nowrap;
+}
+
+/* Active animation clip next to the model stats; click cycles clips. */
+#st-anim {
+  flex: none;
+  margin-left: 10px;
+  white-space: nowrap;
+  cursor: pointer;
 }
 
 #st-axes {
