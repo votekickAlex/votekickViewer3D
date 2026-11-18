@@ -33,20 +33,23 @@ export const ENGLISH: Record<string, string> = {
   "menu.bottom": "Bottom",
   "menu.playPause": "Play / pause animation",
   "menu.nextClip": "Next animation clip",
+  "menu.prevClip": "Previous animation clip",
   "menu.about": "About",
 
   "about.version": "Version {version}",
 
   "status.noModel": "No model loaded",
   "status.fps": "Frames per second",
-  "status.projection": "Current projection (Num 5 switches)",
+  "status.projection": "Current projection (Num 5 switches, click to toggle)",
 
   "status.gridStep": "Step",
 
   "status.gridStepTip": "Size of one grid cell; count cells to estimate the model size",
 
   "status.unitsTip":
-    "Display unit mode for the size and grid step readouts; hotkey M cycles Auto / m / cm / mm",
+    "Display unit mode for the size and grid step readouts; press M or click to cycle Auto / m / cm / mm",
+
+  "status.clickToggle": "click to toggle",
 
   "status.sizeTip":
     "Bounding box size of the model, each dimension colored like its axis; Auto mode shows plain numbers scaled by magnitude (the world unit is assumed to be a meter) unless another unit is picked in Settings",

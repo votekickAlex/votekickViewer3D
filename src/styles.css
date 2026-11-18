@@ -87,6 +87,8 @@ body {
   /* Centered under the whole pill menu, not under the individual button. */
   left: 50%;
   transform: translateX(-50%);
+  /* Size to the longest row so labels and hints never wrap. */
+  width: max-content;
   min-width: 200px;
   padding: 4px;
   background: var(--panel);
@@ -155,11 +157,13 @@ button:focus-visible {
 
 .menu-label {
   flex: 1;
+  white-space: nowrap;
 }
 
 .menu-hint {
   color: var(--text-dim);
   margin-left: 24px;
+  white-space: nowrap;
 }
 
 /* ---------- status bar ---------- */
@@ -213,6 +217,16 @@ button:focus-visible {
 .status-icon.on {
   opacity: 1;
   color: var(--accent);
+}
+
+/* Status readouts that act as buttons. */
+#st-grid,
+#st-wireframe,
+#st-bbox,
+#st-units,
+#st-proj,
+#st-anim {
+  cursor: pointer;
 }
 
 #status-fps,

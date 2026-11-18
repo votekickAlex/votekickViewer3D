@@ -224,17 +224,17 @@ let fullscreenOn = false;
 /** Icons in the status bar reflecting the enabled View states; titles are
  * re-read so a language switch updates them too. */
 function refreshStatusIcons(): void {
-  const states: [string, () => boolean, () => string][] = [
-    ["st-grid", () => viewer.gridVisible, () => t("menu.grid")],
-    ["st-wireframe", () => viewer.wireframeOn, () => t("menu.wireframe")],
-    ["st-bbox", () => viewer.bboxVisible, () => t("menu.boundingBox")],
-    ["st-fullscreen", () => fullscreenOn, () => t("menu.fullscreen")],
+  const states: [string, () => boolean, () => string, boolean][] = [
+    ["st-grid", () => viewer.gridVisible, () => t("menu.grid"), true],
+    ["st-wireframe", () => viewer.wireframeOn, () => t("menu.wireframe"), true],
+    ["st-bbox", () => viewer.bboxVisible, () => t("menu.boundingBox"), true],
+    ["st-fullscreen", () => fullscreenOn, () => t("menu.fullscreen"), false],
   ];
-  for (const [id, on, title] of states) {
+  for (const [id, on, title, clickable] of states) {
     const el = document.getElementById(id);
     if (!el) continue;
     el.classList.toggle("on", on());
-    el.title = title();
+    el.title = clickable ? `${title()}, ${t("status.clickToggle")}` : title();
   }
   const proj = document.getElementById("st-proj");
   if (proj) {
@@ -480,6 +480,8 @@ function showHelp(): void {
   for (const action of HOTKEY_ACTIONS) {
     actions.appendChild(helpRow(action.label(), comboLabel(settings.hotkeys[action.key])));
   }
+  actions.appendChild(helpRow(t("menu.prevClip"), "Page Up"));
+  actions.appendChild(helpRow(t("menu.nextClip"), "Page Down"));
   actions.appendChild(helpRow(t("help.siblingModels"), "Left / Right"));
   views.replaceChildren();
   const viewRows: [string, string][] = [
@@ -610,7 +612,8 @@ const menus: MenuDef[] = [
           action: () => viewer.toggleAnimationPause(),
         });
         if (viewer.animationClipNames.length > 1) {
-          items.push({ label: () => t("menu.nextClip"), action: () => viewer.nextAnimationClip() });
+          items.push({ label: () => t("menu.prevClip"), hint: "Page Up", action: () => viewer.previousAnimationClip() });
+          items.push({ label: () => t("menu.nextClip"), hint: "Page Down", action: () => viewer.nextAnimationClip() });
         }
       }
       return items;
@@ -641,6 +644,13 @@ viewer.onAnimationChange = () => {
 updateAnimationBadge();
 // With several clips the badge also acts as a "next clip" button.
 animEl.addEventListener("click", () => viewer.nextAnimationClip());
+
+// Clickable status readouts: same actions as the menu and hotkeys.
+document.getElementById("st-grid")!.addEventListener("click", toggleGrid);
+document.getElementById("st-wireframe")!.addEventListener("click", toggleWireframe);
+document.getElementById("st-bbox")!.addEventListener("click", toggleBBox);
+unitsEl.addEventListener("click", cycleUnits);
+document.getElementById("st-proj")!.addEventListener("click", toggleOrtho);
 
 // Initial status bar: View state icons and the app version.
 refreshStatusIcons();
@@ -1080,6 +1090,14 @@ window.addEventListener("keydown", (e) => {
     case "NumpadSubtract":
       e.preventDefault();
       viewer.zoomView(1.25);
+      return;
+    case "PageUp":
+      e.preventDefault();
+      viewer.previousAnimationClip();
+      return;
+    case "PageDown":
+      e.preventDefault();
+      viewer.nextAnimationClip();
       return;
   }
 

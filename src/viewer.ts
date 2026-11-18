@@ -434,6 +434,11 @@ export class Viewer {
     this.setAnimationClip(this.clipIndex + 1);
   }
 
+  /** Previous clip (Page Up). */
+  previousAnimationClip(): void {
+    this.setAnimationClip(this.clipIndex - 1);
+  }
+
   private playClip(index: number): void {
     if (!this.mixer) return;
     this.action?.stop();
