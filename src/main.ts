@@ -750,7 +750,22 @@ document.getElementById("st-bbox")!.addEventListener("click", toggleBBox);
 document.getElementById("st-fullscreen")!.addEventListener("click", () => void toggleFullscreen());
 document.getElementById("st-axes-toggle")!.addEventListener("click", toggleAxes);
 document.getElementById("st-hdri")!.addEventListener("click", () => {
-  if (viewer.hdriLoaded) resetHDRI(); else void openHDRIDialog();
+  if (viewer.hdriLoaded) {
+    viewer.resetHDRI();
+    refreshStatusIcons();
+  } else if (settings.general.hdriPath) {
+    void loadHDRIPath(settings.general.hdriPath);
+  } else {
+    void openHDRIDialog();
+  }
+});
+document.getElementById("st-hdri")!.addEventListener("contextmenu", (e) => {
+  e.preventDefault();
+  if (!viewer.hdriLoaded) {
+    setStatus(t("status.hdriPreviewNeedsHdri"), true);
+    return;
+  }
+  viewer.toggleHDRIPreview();
 });
 unitsEl.addEventListener("click", cycleUnits);
 document.getElementById("st-proj")!.addEventListener("click", toggleOrtho);

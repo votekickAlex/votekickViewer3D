@@ -88,7 +88,14 @@ export class Viewer {
   private readonly pmrem!: THREE.PMREMGenerator;
   private readonly defaultEnvironment!: THREE.Texture;
   private customEnvironment: THREE.Texture | null = null;
+  /** HDRI source texture, kept for the corner preview sphere. */
+  private hdriTexture: THREE.Texture | null = null;
   hdriLoaded = false;
+  /** Blender-style HDRI preview sphere in the bottom-right corner. */
+  private previewScene = new THREE.Scene();
+  private previewCamera = new THREE.PerspectiveCamera(50, 1, 0.1, 10);
+  private previewMesh: THREE.Mesh | null = null;
+  hdriPreviewOn = false;
   private wireframe = false;
   /** Shared material for the wireframe overlay: one flat, user-colored
    * look drawn on top of the intact solid model. */
@@ -128,6 +135,12 @@ export class Viewer {
     this.defaultEnvironment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
     this.scene.environment = this.defaultEnvironment;
     this.hdriLoaded = false;
+
+    // HDRI preview sphere: a separate scene rendered into a small corner
+    // viewport, like Blender's world preview.
+    this.previewCamera.position.set(0, 0, 3);
+    this.previewScene.background = new THREE.Color(BG_COLOR);
+    this.previewScene.add(new THREE.AmbientLight(0xffffff, 0.4));
 
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.01, 4000);
     this.camera.position.set(3, 2, 4);
@@ -194,6 +207,19 @@ export class Viewer {
       const delta = Math.min(this.animClock.getDelta(), 0.1);
       if (this.mixer) this.mixer.update(delta);
       this.renderer.render(this.scene, this.activeCamera);
+      // Blender-style HDRI preview in the bottom-right corner.
+      if (this.hdriPreviewOn && this.previewMesh) {
+        const size = Math.min(this.renderer.domElement.clientWidth, this.renderer.domElement.clientHeight) * 0.18;
+        const x = this.renderer.domElement.clientWidth - size - 12;
+        const y = 36; // above the 24px status bar
+        this.renderer.setScissorTest(true);
+        this.renderer.setViewport(x, y, size, size);
+        this.renderer.setScissor(x, y, size, size);
+        this.renderer.clearDepth();
+        this.renderer.render(this.previewScene, this.previewCamera);
+        this.renderer.setScissorTest(false);
+        this.renderer.setViewport(0, 0, this.renderer.domElement.clientWidth, this.renderer.domElement.clientHeight);
+      }
       this.frames++;
       const now = performance.now();
       if (now - this.lastFpsTime >= 500) {
@@ -766,8 +792,11 @@ export class Viewer {
     const filtered = this.pmrem.fromEquirectangular(texture).texture;
     this.scene.environment = filtered;
     this.customEnvironment?.dispose();
-    texture.dispose();
     this.customEnvironment = filtered;
+    // Keep the source texture for the preview sphere (not disposed).
+    this.hdriTexture?.dispose();
+    this.hdriTexture = texture;
+    this.rebuildPreviewSphere();
     this.hdriLoaded = true;
   }
 
@@ -777,6 +806,32 @@ export class Viewer {
     this.customEnvironment = null;
     this.scene.environment = this.defaultEnvironment;
     this.hdriLoaded = false;
+    this.clearPreviewSphere();
+  }
+
+  /** Right-click on the HDRI icon: show/hide the preview sphere. */
+  toggleHDRIPreview(): void {
+    this.hdriPreviewOn = !this.hdriPreviewOn;
+    if (this.hdriPreviewOn) this.rebuildPreviewSphere();
+  }
+
+  private clearPreviewSphere(): void {
+    if (!this.previewMesh) return;
+    this.previewMesh.geometry.dispose();
+    (this.previewMesh.material as THREE.Material).dispose();
+    this.previewScene.remove(this.previewMesh);
+    this.previewMesh = null;
+  }
+
+  private rebuildPreviewSphere(): void {
+    this.clearPreviewSphere();
+    if (!this.hdriTexture) return;
+    const material = new THREE.MeshBasicMaterial({
+      envMap: this.hdriTexture,
+      toneMapped: false,
+    });
+    this.previewMesh = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32), material);
+    this.previewScene.add(this.previewMesh);
   }
 
   /** Color of the flat wireframe overlay (Settings > Colors). */

@@ -129,7 +129,8 @@ modes).
 - Clicking the version in the status bar or in About checks GitHub for
   updates and offers automatic installation or a manual download.
 - An `.hdr` file can be loaded from Tools > Load HDRI as the studio
-  environment; the status bar HDRI icon turns on while it is active.
+  environment; the status bar HDRI icon turns on while it is active,
+  left click toggles it and right click shows a preview sphere.
 - **Languages**: plain JSON files. On first launch
   `english.json` is created in `%APPDATA%\votekickViewer3D\lang`; copy it,
   translate, rename to your language, put it back and it appears in the
