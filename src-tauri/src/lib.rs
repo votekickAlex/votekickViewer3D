@@ -1,4 +1,14 @@
 use tauri::{Emitter, Manager};
+use serde::Serialize;
+
+/// Latest release info returned to the frontend by check_update.
+#[derive(Serialize)]
+pub struct UpdateInfo {
+    pub version: String,
+    pub notes: String,
+    pub page_url: String,
+    pub download_url: String,
+}
 
 /// App data folder name under %APPDATA% (deliberately without "!" - file
 /// system naming convention), unlike the product display name.
@@ -169,6 +179,95 @@ fn initial_file() -> Option<String> {
     model_file_from_args(&args)
 }
 
+/// Downloads the installer to the app cache folder and launches it; the
+/// frontend then quits the app so the installer can replace the exe.
+#[tauri::command]
+async fn download_installer(app: tauri::AppHandle, url: String) -> Result<(), String> {
+    let client = reqwest::Client::builder()
+        .user_agent("votekickViewer3D")
+        .build()
+        .map_err(|e| e.to_string())?;
+    let bytes = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?
+        .bytes()
+        .await
+        .map_err(|e| e.to_string())?;
+    let cache = app
+        .path()
+        .cache_dir()
+        .map_err(|e| e.to_string())?
+        .join(DATA_DIR_NAME)
+        .join("update");
+    std::fs::create_dir_all(&cache).map_err(|e| e.to_string())?;
+    let path = cache.join("votekickViewer3D-setup.exe");
+    std::fs::write(&path, &bytes).map_err(|e| e.to_string())?;
+    std::process::Command::new(&path)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Compares dot-separated numeric versions ("0.0.4" vs tag "v0.0.5").
+fn version_is_newer(latest: &str, current: &str) -> bool {
+    let nums = |s: &str| -> Vec<u64> {
+        s.trim().trim_start_matches('v')
+            .split('.')
+            .map(|n| n.parse().unwrap_or(0))
+            .collect()
+    };
+    let a = nums(latest);
+    let b = nums(current);
+    for i in 0..a.len().max(b.len()) {
+        let x = *a.get(i).unwrap_or(&0);
+        let y = *b.get(i).unwrap_or(&0);
+        if x != y { return x > y; }
+    }
+    false
+}
+
+/// Queries the latest GitHub release. Returns None when the current
+/// version is up to date; errors are reported to the frontend as strings.
+#[tauri::command]
+async fn check_update(current: String) -> Result<Option<UpdateInfo>, String> {
+    let client = reqwest::Client::builder()
+        .user_agent("votekickViewer3D")
+        .build()
+        .map_err(|e| e.to_string())?;
+    let data: serde_json::Value = client
+        .get("https://api.github.com/repos/votekickAlex/votekickViewer3D/releases/latest")
+        .send()
+        .await
+        .map_err(|e| e.to_string())?
+        .json()
+        .await
+        .map_err(|e| e.to_string())?;
+    let tag = data["tag_name"].as_str().unwrap_or("").to_string();
+    if !version_is_newer(&tag, &current) {
+        return Ok(None);
+    }
+    let version = tag.trim_start_matches('v').to_string();
+    let notes = data["body"].as_str().unwrap_or("").to_string();
+    let page_url = data["html_url"].as_str().unwrap_or("").to_string();
+    // The NSIS installer is the only -setup.exe asset in a release.
+    let download_url = data["assets"]
+        .as_array()
+        .and_then(|assets| {
+            assets.iter().find_map(|a| {
+                let name = a["name"].as_str().unwrap_or("");
+                if name.ends_with("-setup.exe") {
+                    a["browser_download_url"].as_str().map(|s| s.to_string())
+                } else {
+                    None
+                }
+            })
+        })
+        .unwrap_or_default();
+    Ok(Some(UpdateInfo { version, notes, page_url, download_url }))
+}
+
 /// Model files (by extension) in one folder, absolute paths sorted by
 /// file name; backs the Arrow Left / Right "previous / next model in the
 /// folder" navigation.
@@ -253,6 +352,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             initial_file,
             list_models,
+            check_update,
+            download_installer,
             load_settings,
             save_settings,
             log_error,

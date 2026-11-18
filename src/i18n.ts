@@ -44,6 +44,19 @@ export const ENGLISH: Record<string, string> = {
 
   "about.licenseNote": "The app itself is MIT licensed, see the LICENSE file.",
 
+  "update.title": "Check for updates",
+  "update.clickHint": "Click to check for updates",
+  "update.checking": "Checking GitHub for the latest release…",
+  "update.current": "You are up to date.",
+  "update.available": "A new version is available.",
+  "update.newVersion": "Version {version}",
+  "update.noNotes": "No release notes provided.",
+  "update.auto": "Update automatically",
+  "update.manual": "Download manually",
+  "update.downloading": "Downloading the installer…",
+  "update.installing": "Starting the installer, the app will close…",
+  "update.failed": "Update check failed: {message}",
+
   "status.noModel": "No model loaded",
   "status.fps": "Frames per second",
   "status.projection": "Current projection (Num 5 switches, click to toggle)",

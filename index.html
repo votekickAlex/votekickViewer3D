@@ -187,6 +187,23 @@
       </div>
     </dialog>
 
+    <dialog id="update-dialog">
+      <div class="dialog-head">
+        <span class="dialog-icon" data-icon="downloading-loop" aria-hidden="true"></span>
+        <h2 data-i18n="update.title">Check for updates</h2>
+      </div>
+      <p id="update-status" class="dialog-note"></p>
+      <div id="update-details" hidden>
+        <p id="update-version" class="update-version"></p>
+        <pre id="update-notes" class="update-notes"></pre>
+      </div>
+      <div class="dialog-actions">
+        <button id="update-auto" hidden data-i18n="update.auto">Update automatically</button>
+        <button id="update-manual" hidden data-i18n="update.manual">Download manually</button>
+        <button id="update-close" data-i18n="dialog.ok">OK</button>
+      </div>
+    </dialog>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

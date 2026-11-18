@@ -63,6 +63,7 @@ The full list is always available in the app: `F1` or File > Help.
 | `R` | Reset view: fits the model to the window, keeps the current angle |
 | `F` | Fullscreen |
 | `H` | Toggle interface (hides everything but the 3D viewport and the world axes) |
+| Click version | Check GitHub for updates |
 | `Q` | Quit |
 | `M` | Cycle display units (Auto / m / cm / mm) |
 | `Space` | Play / pause animation |
@@ -121,6 +122,8 @@ modes).
 - **Settings** has three categories: General (launch maximized, always on
   top, world axes, display units, language), Colors (grid, wireframe,
   bounding box, axes opacity) and Hotkeys.
+- Clicking the version in the status bar or in About checks GitHub for
+  updates and offers automatic installation or a manual download.
 - **Languages**: plain JSON files. On first launch
   `english.json` is created in `%APPDATA%\votekickViewer3D\lang`; copy it,
   translate, rename to your language, put it back and it appears in the

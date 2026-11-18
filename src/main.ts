@@ -23,7 +23,8 @@ const settingsDialog = document.getElementById("settings-dialog") as HTMLDialogE
 const pluginsDialog = document.getElementById("plugins-dialog") as HTMLDialogElement;
 const aboutDialog = document.getElementById("about-dialog") as HTMLDialogElement;
 const helpDialog = document.getElementById("help-dialog") as HTMLDialogElement;
-const ALL_DIALOGS = [settingsDialog, pluginsDialog, aboutDialog, helpDialog];
+const updateDialog = document.getElementById("update-dialog") as HTMLDialogElement;
+const ALL_DIALOGS = [settingsDialog, pluginsDialog, aboutDialog, helpDialog, updateDialog];
 const loadingOverlay = document.createElement("div");
 
 loadingOverlay.id = "loading";
@@ -758,10 +759,11 @@ setInterval(() => {
   fpsEl.textContent = `${viewer.fps} fps`;
 }, 500);
 
-// App version badge: the tooltip shows the full product name with the
-// version.
+// App version badge: click opens the update check.
 const versionEl = document.getElementById("status-version")!;
-versionEl.title = `!votekickViewer3D v${APP_VERSION}`;
+versionEl.title = `!votekickViewer3D v${APP_VERSION}. ${t("update.clickHint")}`;
+versionEl.style.cursor = "pointer";
+versionEl.addEventListener("click", () => void checkForUpdates());
 
 // Viewport colors (Settings > Colors): a ShareX style picker per row,
 // persisted and applied on OK.
@@ -795,10 +797,115 @@ document.getElementById("hotkeys-reset")!.addEventListener("click", () => {
   renderHotkeyRows();
 });
 
+// ---------- updates ----------
+
+interface UpdateInfo {
+  version: string;
+  notes: string;
+  page_url: string;
+  download_url: string;
+}
+
+const updateStatusEl = document.getElementById("update-status")!;
+const updateDetailsEl = document.getElementById("update-details")!;
+const updateVersionEl = document.getElementById("update-version")!;
+const updateNotesEl = document.getElementById("update-notes")!;
+const updateAutoBtn = document.getElementById("update-auto") as HTMLButtonElement;
+const updateManualBtn = document.getElementById("update-manual") as HTMLButtonElement;
+let pendingUpdate: UpdateInfo | null = null;
+
+/** Queries GitHub Releases via the backend and shows the result in the
+ * update dialog; called by clicking the version badge or About version. */
+async function checkForUpdates(): Promise<void> {
+  pendingUpdate = null;
+  updateDetailsEl.hidden = true;
+  updateAutoBtn.hidden = true;
+  updateManualBtn.hidden = true;
+  updateStatusEl.textContent = t("update.checking");
+  if (!updateDialog.open) updateDialog.showModal();
+  let info: UpdateInfo | null = null;
+  try {
+    if ("__TAURI_INTERNALS__" in window) {
+      const { invoke } = await import("@tauri-apps/api/core");
+      info = await invoke<UpdateInfo | null>("check_update", { current: APP_VERSION });
+    } else {
+      // Dev browser: query GitHub directly (no backend); no auto button.
+      const res = await fetch("https://api.github.com/repos/votekickAlex/votekickViewer3D/releases/latest");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const tag = data.tag_name ?? "";
+      const nums = (s: string): number[] => s.replace(/^v/, "").split(".").map((n: string) => parseInt(n) || 0);
+      const a = nums(tag), b = nums(APP_VERSION);
+      const newer = a.some((n, i) => n !== (b[i] ?? 0)) && a.reduce((acc, n, i) => acc || n > (b[i] ?? 0), false);
+      if (newer) {
+        info = {
+          version: tag.replace(/^v/, ""),
+          notes: data.body ?? "",
+          page_url: data.html_url ?? "",
+          download_url: (data.assets ?? []).find((x: any) => x.name?.endsWith("-setup.exe"))?.browser_download_url ?? "",
+        };
+      }
+    }
+  } catch (err) {
+    updateStatusEl.textContent = t("update.failed", { message: err instanceof Error ? err.message : String(err) });
+    return;
+  }
+  if (!info) {
+    updateStatusEl.textContent = t("update.current");
+    return;
+  }
+  pendingUpdate = info;
+  updateStatusEl.textContent = t("update.available");
+  updateVersionEl.textContent = t("update.newVersion", { version: info.version });
+  updateNotesEl.textContent = info.notes || t("update.noNotes");
+  updateDetailsEl.hidden = false;
+  updateManualBtn.hidden = !info.download_url && !info.page_url;
+  // Automatic update needs the backend to download and run the installer.
+  updateAutoBtn.hidden = !("__TAURI_INTERNALS__" in window) || !info.download_url;
+}
+
+/** Manual: open the release page / installer in the system browser. */
+async function manualUpdate(): Promise<void> {
+  if (!pendingUpdate) return;
+  const url = pendingUpdate.page_url || pendingUpdate.download_url;
+  if (!url) return;
+  if ("__TAURI_INTERNALS__" in window) {
+    const { openUrl } = await import("@tauri-apps/plugin-opener");
+    await openUrl(url).catch((err) => console.warn("Could not open the release page", err));
+  } else {
+    window.open(url, "_blank");
+  }
+}
+
+/** Automatic: download the installer and run it via the backend. */
+async function autoUpdate(): Promise<void> {
+  if (!pendingUpdate || !pendingUpdate.download_url) return;
+  updateStatusEl.textContent = t("update.downloading");
+  updateAutoBtn.disabled = true;
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    await invoke("download_installer", { url: pendingUpdate.download_url });
+    updateStatusEl.textContent = t("update.installing");
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await quitApp();
+  } catch (err) {
+    updateStatusEl.textContent = t("update.failed", { message: err instanceof Error ? err.message : String(err) });
+    updateAutoBtn.disabled = false;
+  }
+}
+
+document.getElementById("update-close")!.addEventListener("click", () => updateDialog.close());
+updateManualBtn.addEventListener("click", () => void manualUpdate());
+updateAutoBtn.addEventListener("click", () => void autoUpdate());
+
 // ---------- about ----------
 
 function showAbout(): void {
   document.getElementById("about-version")!.textContent = t("about.version", { version: APP_VERSION });
+  const v = document.getElementById("about-version")!;
+  v.style.cursor = "pointer";
+  v.title = t("update.clickHint");
+  v.onclick = () => void checkForUpdates();
   aboutDialog.showModal();
 }
 
