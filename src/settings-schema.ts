@@ -10,6 +10,9 @@ export const DEFAULTS = {
     // World axes lines in the viewport; toggle from the status bar,
     // the View menu, Settings or the A hotkey.
     axes: true,
+    // Skeleton overlay for skinned models; toggled by the status icon,
+    // View menu or S hotkey and persisted across launches.
+    skeleton: false,
     gridColor: "#404040",
     wireframeColor: "#80808080",
     bboxColor: "#0080FF",

@@ -1197,7 +1197,9 @@ export class Viewer {
   }
 
   setSkeletonVisible(visible: boolean): void {
-    this.skeletonOn = visible && this.skeletonHelper !== null;
+    // Remember the desired state even before a model is loaded; the
+    // helper picks it up when it is created in rebuildSkeleton().
+    this.skeletonOn = visible;
     if (this.skeletonHelper) this.skeletonHelper.visible = this.skeletonOn;
   }
 
@@ -1209,6 +1211,11 @@ export class Viewer {
     this.skeletonHelper = null;
     // glTF keeps bones as siblings of the SkinnedMesh, not its children:
     // build the helper from modelRoot so it sees the whole bone hierarchy.
+    let hasBones = false;
+    this.modelRoot.traverse((obj) => {
+      if ((obj as THREE.Bone).isBone) hasBones = true;
+    });
+    if (!hasBones) return;
     const helper = new THREE.SkeletonHelper(this.modelRoot);
     const material = helper.material as THREE.LineBasicMaterial;
     material.depthTest = false;

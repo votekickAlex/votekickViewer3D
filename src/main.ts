@@ -170,6 +170,7 @@ viewer.setGridVisible(settings.view.grid);
 viewer.setWireframe(settings.view.wireframe);
 viewer.setBBoxVisible(settings.view.bbox);
 viewer.setAxesVisible(settings.view.axes);
+viewer.setSkeletonVisible(settings.view.skeleton);
 viewer.setGridColor(settings.view.gridColor);
 viewer.setWireframeColor(settings.view.wireframeColor);
 viewer.setBBoxColor(settings.view.bboxColor);
@@ -222,7 +223,9 @@ function toggleAxes(): void {
 /** View > Skeleton: toggle the bone helper (only for animated models). */
 function toggleSkeleton(): void {
   if (!viewer.skeletonAvailable) return;
-  viewer.setSkeletonVisible(!viewer.skeletonVisible);
+  const on = !viewer.skeletonVisible;
+  viewer.setSkeletonVisible(on);
+  setSetting("view", "skeleton", on);
   refreshStatusIcons();
   menuBar.refreshOpenMenu();
 }
@@ -1033,16 +1036,20 @@ function showAbout(): void {
 
 document.getElementById("about-close")!.addEventListener("click", () => aboutDialog.close());
 
-document.getElementById("about-link")!.addEventListener("click", async (e) => {
-  e.preventDefault();
-  if ("__TAURI_INTERNALS__" in window) {
-    // Open in the system browser, not inside the webview.
-    const { openUrl } = await import("@tauri-apps/plugin-opener");
-    await openUrl("https://votekickpanda.com/").catch((err) => console.warn("Could not open the link", err));
-  } else {
-    window.open("https://votekickpanda.com/", "_blank");
-  }
-});
+for (const id of ["about-link", "about-github"]) {
+  const link = document.getElementById(id) as HTMLAnchorElement;
+  link.addEventListener("click", async (e) => {
+    e.preventDefault();
+    const url = link.dataset.url!;
+    if ("__TAURI_INTERNALS__" in window) {
+      // Open in the system browser, not inside the webview.
+      const { openUrl } = await import("@tauri-apps/plugin-opener");
+      await openUrl(url).catch((err) => console.warn("Could not open the link", err));
+    } else {
+      window.open(url, "_blank");
+    }
+  });
+}
 
 fileInput.addEventListener("change", () => {
   if (fileInput.files?.length) openFile(fileInput.files[0]);
@@ -1202,6 +1209,9 @@ async function loadModel(buffer: ArrayBuffer, name: string): Promise<boolean> {
     );
     document.title = `${name} - ${APP_TITLE}`;
     updateStatusBadges();
+    // Refresh status icons too: skeleton availability/state and the HDRI
+    // icon depend on the freshly loaded model.
+    refreshStatusIcons();
     return true;
   } catch (err) {
     if (seq !== loadingSeq) return false;
