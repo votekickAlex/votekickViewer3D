@@ -930,6 +930,36 @@ dialog h3:first-child {
   text-decoration: underline;
 }
 
+/* Third party license list in About: two aligned columns, scrolls if
+ * it ever grows taller than the screen. */
+.about-licenses {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 16px;
+  font-size: 12px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.license-row {
+  display: contents;
+}
+
+.license-row span:first-child {
+  color: var(--text);
+}
+
+.license-row span:last-child {
+  color: var(--text-dim);
+  text-align: right;
+}
+
+.about-license-note {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 10px;
+}
+
 .link-icon {
   display: inline-block;
   width: 13px;

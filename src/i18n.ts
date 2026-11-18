@@ -40,6 +40,10 @@ export const ENGLISH: Record<string, string> = {
 
   "about.version": "Version {version}",
 
+  "about.licensesTitle": "Third party components",
+
+  "about.licenseNote": "The app itself is MIT licensed, see the LICENSE file.",
+
   "status.noModel": "No model loaded",
   "status.fps": "Frames per second",
   "status.projection": "Current projection (Num 5 switches, click to toggle)",
