@@ -19,14 +19,14 @@ export const DEFAULTS = {
     // Viewport background behind the model; matches the old fixed color.
     backgroundColor: "#1c1f24",
     // Axis line opacity in percent (Settings > Colors slider).
-    axesOpacity: 100,
+    axesOpacity: 50,
   },
   window: {
     launchMaximized: false,
-    alwaysOnTop: false,
+    alwaysOnTop: true,
     // Opt-in: when enabled, the fullscreen state is persisted on every
     // toggle and re-applied at startup (gated again by rememberFullscreen).
-    rememberFullscreen: false,
+    rememberFullscreen: true,
     fullscreen: false,
   },
   general: {
