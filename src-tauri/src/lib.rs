@@ -22,6 +22,17 @@ fn ensure_data_dirs(app: &tauri::App) {
         let _ = std::fs::create_dir_all(base.join("cfg"));
         let _ = std::fs::create_dir_all(base.join("cache"));
         let _ = std::fs::create_dir_all(base.join("lang"));
+        // Clean up installers downloaded by a previous auto-update: each
+        // fresh launch starts with an empty update folder.
+        let update_dir = base.join("cache").join("update");
+        if let Ok(entries) = std::fs::read_dir(&update_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_file() {
+                    let _ = std::fs::remove_file(path);
+                }
+            }
+        }
     }
 }
 
