@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "votekickViewer3D",
   "mainBinaryName": "votekickViewer3D",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "identifier": "com.votekick.viewer3d",
   "build": {
     "beforeDevCommand": "npm run dev",
