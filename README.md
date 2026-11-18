@@ -93,7 +93,8 @@ The same commands are in the View menu.
 
 Animated models (GLB/glTF, FBX, DAE) play their first clip automatically
 on open. `Space` pauses or resumes it; with several clips use View > Next
-animation clip or click the clip name in the status bar.
+animation clip or click the clip name in the status bar. Wireframe mode
+follows skinned and morph-target animations.
 
 The status bar shows the model size with units (e.g. 2 x 2 x 2 m, each
 dimension number colored like its axis) on the left next to the file

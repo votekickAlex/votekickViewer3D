@@ -1048,11 +1048,28 @@ export class Viewer {
       // the transform, shares the geometry (no copies) and draws its
       // triangle edges on top of the intact solid surface. The flag keeps
       // the traversal from recursing into the overlays themselves.
+      // Skinned overlays must be SkinnedMesh too: a plain Mesh has no
+      // skeleton, so it would stay in bind pose while the model animates.
       const overlays: THREE.Mesh[] = [];
       this.modelRoot.traverse((obj) => {
         const mesh = obj as THREE.Mesh;
         if (!mesh.isMesh || (mesh.userData as { wireOverlay?: boolean }).wireOverlay) return;
-        const overlay = new THREE.Mesh(mesh.geometry, this.wireframeMaterial);
+        let overlay: THREE.Mesh;
+        if ((mesh as THREE.SkinnedMesh).isSkinnedMesh) {
+          const skinned = mesh as THREE.SkinnedMesh;
+          const skinnedOverlay = new THREE.SkinnedMesh(mesh.geometry, this.wireframeMaterial);
+          skinnedOverlay.bind(skinned.skeleton, skinned.bindMatrix);
+          skinnedOverlay.bindMode = skinned.bindMode;
+          overlay = skinnedOverlay;
+        } else {
+          overlay = new THREE.Mesh(mesh.geometry, this.wireframeMaterial);
+        }
+        // Morph influences live on the mesh, not on the shared geometry:
+        // share the array so the animator drives both meshes at once.
+        if (mesh.morphTargetInfluences) {
+          overlay.morphTargetInfluences = mesh.morphTargetInfluences;
+          overlay.morphTargetDictionary = mesh.morphTargetDictionary;
+        }
         overlay.userData.wireOverlay = true;
         overlay.renderOrder = 5;
         mesh.add(overlay);
