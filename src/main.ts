@@ -846,6 +846,9 @@ const versionEl = document.getElementById("status-version")!;
 versionEl.title = `!votekickViewer3D v${APP_VERSION}. ${t("update.clickHint")}`;
 versionEl.style.cursor = "pointer";
 versionEl.addEventListener("click", () => void checkForUpdates());
+// Check once on launch so an available update highlights the badge
+// without the user having to click it first.
+void checkForUpdatesSilently();
 
 // Viewport colors (Settings > Colors): a ShareX style picker per row,
 // persisted and applied on OK.
@@ -897,8 +900,44 @@ const updateAutoBtn = document.getElementById("update-auto") as HTMLButtonElemen
 const updateManualBtn = document.getElementById("update-manual") as HTMLButtonElement;
 let pendingUpdate: UpdateInfo | null = null;
 
-/** Queries GitHub Releases via the backend and shows the result in the
- * update dialog; called by clicking the version badge or About version. */
+/** Queries GitHub Releases via the backend (or directly in the dev
+ * browser). Returns null when up to date; throws on network/parse errors. */
+async function fetchUpdateInfo(): Promise<UpdateInfo | null> {
+  if ("__TAURI_INTERNALS__" in window) {
+    const { invoke } = await import("@tauri-apps/api/core");
+    return invoke<UpdateInfo | null>("check_update", { current: APP_VERSION });
+  }
+  const res = await fetch("https://api.github.com/repos/votekickAlex/votekickViewer3D/releases/latest");
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  const tag = data.tag_name ?? "";
+  const nums = (s: string): number[] => s.replace(/^v/, "").split(".").map((n: string) => parseInt(n) || 0);
+  const a = nums(tag), b = nums(APP_VERSION);
+  const newer = a.some((n, i) => n !== (b[i] ?? 0)) && a.reduce((acc, n, i) => acc || n > (b[i] ?? 0), false);
+  if (!newer) return null;
+  return {
+    version: tag.replace(/^v/, ""),
+    notes: data.body ?? "",
+    page_url: data.html_url ?? "",
+    download_url: (data.assets ?? []).find((x: any) => x.name?.endsWith("-setup.exe"))?.browser_download_url ?? "",
+  };
+}
+
+/** Silent check at startup: only highlights the version badge, no dialog. */
+async function checkForUpdatesSilently(): Promise<void> {
+  try {
+    const info = await fetchUpdateInfo();
+    if (info) {
+      versionEl.classList.add("update-available");
+      versionEl.title = t("update.availableTitle", { version: info.version });
+    }
+  } catch (err) {
+    console.warn("Update check failed", err);
+  }
+}
+
+/** Queries GitHub Releases and shows the result in the update dialog;
+ * called by clicking the version badge or About version. */
 async function checkForUpdates(): Promise<void> {
   pendingUpdate = null;
   versionEl.classList.remove("update-available");
@@ -910,27 +949,7 @@ async function checkForUpdates(): Promise<void> {
   if (!updateDialog.open) updateDialog.showModal();
   let info: UpdateInfo | null = null;
   try {
-    if ("__TAURI_INTERNALS__" in window) {
-      const { invoke } = await import("@tauri-apps/api/core");
-      info = await invoke<UpdateInfo | null>("check_update", { current: APP_VERSION });
-    } else {
-      // Dev browser: query GitHub directly (no backend); no auto button.
-      const res = await fetch("https://api.github.com/repos/votekickAlex/votekickViewer3D/releases/latest");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const tag = data.tag_name ?? "";
-      const nums = (s: string): number[] => s.replace(/^v/, "").split(".").map((n: string) => parseInt(n) || 0);
-      const a = nums(tag), b = nums(APP_VERSION);
-      const newer = a.some((n, i) => n !== (b[i] ?? 0)) && a.reduce((acc, n, i) => acc || n > (b[i] ?? 0), false);
-      if (newer) {
-        info = {
-          version: tag.replace(/^v/, ""),
-          notes: data.body ?? "",
-          page_url: data.html_url ?? "",
-          download_url: (data.assets ?? []).find((x: any) => x.name?.endsWith("-setup.exe"))?.browser_download_url ?? "",
-        };
-      }
-    }
+    info = await fetchUpdateInfo();
   } catch (err) {
     updateStatusEl.textContent = t("update.failed", { message: err instanceof Error ? err.message : String(err) });
     return;
