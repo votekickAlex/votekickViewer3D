@@ -62,7 +62,7 @@ The full list is always available in the app: `F1` or File > Help.
 | `B` | Bounding box on/off |
 | `R` | Reset view: fits the model to the window, keeps the current angle |
 | `F` | Fullscreen |
-| `H` | Toggle interface (hides everything but the 3D viewport) |
+| `H` | Toggle interface (hides everything but the 3D viewport and the world axes) |
 | `Q` | Quit |
 | `M` | Cycle display units (Auto / m / cm / mm) |
 | `Space` | Play / pause animation |
@@ -73,8 +73,9 @@ The full list is always available in the app: `F1` or File > Help.
 
 Every binding is editable in Tools > Settings > Hotkeys, including mouse
 buttons (e.g. `Ctrl+Mouse Left`); `Esc` cancels the capture, `Backspace`
-clears it. The arrow navigation needs a model opened through Explorer or
-the command line (dropped and picked files carry no folder path).
+clears it. The arrow navigation needs a model opened through Explorer, the command
+line or the File > Open dialog (dropped and picked files via drag&drop
+carry no folder path).
 
 ### Numpad views (Blender style)
 

@@ -205,7 +205,7 @@ function toggleBBox(): void {
 function toggleAxes(): void {
   const on = !settings.view.axes;
   setSetting("view", "axes", on);
-  viewer.setAxesVisible(on && !uiHidden);
+  viewer.setAxesVisible(on);
   refreshStatusIcons();
   const checkbox = document.getElementById("set-axes-visible") as HTMLInputElement | null;
   if (checkbox) checkbox.checked = on;
@@ -217,7 +217,23 @@ function toggleOrtho(): void {
   refreshStatusIcons();
 }
 
-function openFileDialog(): void {
+/** File > Open (hotkey O). In Tauri the native dialog returns a real
+ * file path, so arrow-key folder navigation works for picked files too;
+ * the plain HTML input stays as a fallback for the dev browser. */
+async function openFileDialog(): Promise<void> {
+  if ("__TAURI_INTERNALS__" in window) {
+    try {
+      const { open } = await import("@tauri-apps/plugin-dialog");
+      const picked = await open({
+        multiple: false,
+        filters: [{ name: "Models", extensions: SUPPORTED_EXTENSIONS.map((e) => e.slice(1)) }],
+      });
+      if (typeof picked === "string") await openPath(picked);
+      return;
+    } catch (err) {
+      console.warn("Native open dialog failed, falling back", err);
+    }
+  }
   fileInput.click();
 }
 
@@ -240,7 +256,7 @@ function refreshStatusIcons(): void {
     ["st-wireframe", () => viewer.wireframeOn, () => t("menu.wireframe"), true],
     ["st-bbox", () => viewer.bboxVisible, () => t("menu.boundingBox"), true],
     ["st-fullscreen", () => fullscreenOn, () => t("menu.fullscreen"), true],
-    ["st-axes-toggle", () => settings.view.axes && !uiHidden, () => t("menu.axes"), true],
+    ["st-axes-toggle", () => settings.view.axes, () => t("menu.axes"), true],
   ];
   for (const [id, on, title, clickable] of states) {
     const el = document.getElementById(id);
@@ -296,8 +312,9 @@ let uiHidden = false;
 function toggleInterface(): void {
   uiHidden = !uiHidden;
   document.body.classList.toggle("ui-hidden", uiHidden);
-  // The world axes gizmo counts as interface too: hidden with H.
-  viewer.setAxesVisible(settings.view.axes && !uiHidden);
+  // The world axes are part of the 3D scene, not the UI: they stay
+  // visible with the interface hidden (H).
+  viewer.setAxesVisible(settings.view.axes);
 }
 
 // ---------- hotkeys (editable in the Settings dialog) ----------
@@ -307,7 +324,7 @@ type HotkeyKey = keyof AppSettings["hotkeys"];
 /** The bound actions, shared by the menu, the global key listener and
  * the Settings rows. */
 const HOTKEY_ACTIONS: { key: HotkeyKey; label: () => string; run: () => void }[] = [
-  { key: "open", label: () => t("hotkeys.open"), run: openFileDialog },
+  { key: "open", label: () => t("hotkeys.open"), run: () => void openFileDialog() },
   { key: "grid", label: () => t("hotkeys.grid"), run: toggleGrid },
   { key: "wireframe", label: () => t("hotkeys.wireframe"), run: toggleWireframe },
   { key: "boundingBox", label: () => t("hotkeys.boundingBox"), run: toggleBBox },
@@ -590,7 +607,7 @@ const menus: MenuDef[] = [
     label: () => t("menu.file"),
     icon: "file",
     items: [
-      { label: () => t("menu.open"), hint: () => settings.hotkeys.open, icon: "folder-arrow-right", action: openFileDialog },
+      { label: () => t("menu.open"), hint: () => settings.hotkeys.open, icon: "folder-arrow-right", action: () => void openFileDialog() },
       { label: () => t("menu.close"), icon: "close-small", action: closeModel },
       { label: () => t("menu.help"), hint: "F1", icon: "question-circle", action: showHelp },
       { label: () => t("menu.quit"), hint: () => settings.hotkeys.quit, icon: "logout", action: () => void quitApp() },
@@ -614,7 +631,7 @@ const menus: MenuDef[] = [
         { label: () => t("menu.grid"), hint: () => settings.hotkeys.grid, checked: () => viewer.gridVisible, icon: "grid-3", action: toggleGrid },
         { label: () => t("menu.wireframe"), hint: () => settings.hotkeys.wireframe, checked: () => viewer.wireframeOn, icon: "hash", action: toggleWireframe },
         { label: () => t("menu.boundingBox"), hint: () => settings.hotkeys.boundingBox, checked: () => viewer.bboxVisible, icon: "square", action: toggleBBox },
-        { label: () => t("menu.axes"), hint: () => settings.hotkeys.axes, checked: () => settings.view.axes && !uiHidden, icon: "axes", action: toggleAxes },
+        { label: () => t("menu.axes"), hint: () => settings.hotkeys.axes, checked: () => settings.view.axes, icon: "axes", action: toggleAxes },
         { label: () => t("menu.fullscreen"), hint: () => settings.hotkeys.fullscreen, checked: () => fullscreenOn, icon: "arrows-diagonal", action: () => void toggleFullscreen() },
         { label: () => t("menu.interface"), hint: () => settings.hotkeys.interface, checked: () => !uiHidden, icon: "monitor-screenshot", action: toggleInterface },
       ];
@@ -712,7 +729,7 @@ document.getElementById("set-always-on-top")!.addEventListener("change", async (
 document.getElementById("set-axes-visible")!.addEventListener("change", (e) => {
   const on = (e.target as HTMLInputElement).checked;
   setSetting("view", "axes", on);
-  viewer.setAxesVisible(on && !uiHidden);
+  viewer.setAxesVisible(on);
   refreshStatusIcons();
 });
 
