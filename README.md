@@ -129,6 +129,16 @@ modes).
   `#0080FF`, background `#1c1f24`.
 - Clicking the version in the status bar or in About checks GitHub for
   updates and offers automatic installation or a manual download.
+
+### Plugins
+
+Put `.js` files into `%APPDATA%\votekickViewer3D\plugins\` and enable them
+in Tools > Plugins. A plugin gets `window.vk` with events
+(`onModelLoaded`, `onViewChanged`, `onAnimationChanged`) and actions
+(`setGrid`, `setWireframe`, `setBoundingBox`, `setAxes`, `setViewPreset`,
+`resetView`, `showMessage`, `registerButton`, `getModelInfo`, `getModel`).
+Plugins are trusted scripts with full access to the app page; see
+`examples/plugins/hello.js` for a minimal example.
 - An `.hdr` file can be loaded from Tools > Load HDRI as the studio
   environment; the status bar HDRI icon turns on while it is active,
   left click toggles it, right click shows a preview sphere, and
@@ -149,8 +159,7 @@ npm run release   # builds installer + portable zip into release/
 
 ## TODO
 
-- Plugins support
-- More supported formats
+- (empty)
 
 ## License
 

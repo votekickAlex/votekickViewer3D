@@ -9,6 +9,7 @@ import { createMenuBar, type MenuDef, type MenuItemDef } from "./menu";
 import { currentLanguage, englishTemplate, setLanguage, t } from "./i18n";
 import { iconSvg } from "./icons";
 import { openColorPicker } from "./colorpicker";
+import { createPluginApi, type ModelInfo } from "./plugin-api";
 import "./tooltip";
 import { version as APP_VERSION } from "../package.json";
 
@@ -38,6 +39,82 @@ loadingOverlay.innerHTML = `
 document.body.appendChild(loadingOverlay);
 
 const viewer = new Viewer(viewport);
+
+// ---------- plugin system ----------
+
+/** Loaded plugin API, with internal emitters for app events. */
+const vk = createPluginApi({
+  getModelInfo: () => modelInfoForPlugin(),
+  getModel: () => (viewer as any).modelRoot?.children[0] ?? null,
+  setGrid: (on) => { if (viewer.gridVisible !== on) toggleGrid(); },
+  setWireframe: (on) => { if (viewer.wireframeOn !== on) toggleWireframe(); },
+  setBoundingBox: (on) => { if (viewer.bboxVisible !== on) toggleBBox(); },
+  setAxes: (on) => { if (settings.view.axes !== on) toggleAxes(); },
+  setViewPreset: (name) => viewer.setViewPreset(name),
+  resetView: () => viewer.frameModel(false),
+  showMessage: (text) => setStatus(text),
+  registerButton: (label, cb) => registerPluginButton(label, cb),
+});
+(window as any).vk = vk;
+
+/** Model info passed to plugins on load. */
+function modelInfoForPlugin(): ModelInfo | null {
+  const size = viewer.modelSize;
+  if (!size) return null;
+  let tris = 0;
+  (viewer as any).modelRoot?.traverse((o: THREE.Object3D) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh || (mesh.userData as any).wireOverlay) return;
+    const idx = mesh.geometry?.getIndex();
+    const pos = mesh.geometry?.getAttribute("position");
+    tris += Math.floor((idx ? idx.count : pos?.count ?? 0) / 3);
+  });
+  return {
+    name: document.title.replace(` - ${APP_TITLE}`, ""),
+    width: size.x, height: size.y, depth: size.z,
+    triangles: tris, clips: [...viewer.animationClipNames],
+  };
+}
+
+/** Plugin buttons, added to a small bar under the menu. */
+const pluginBar = document.createElement("div");
+pluginBar.id = "plugin-bar";
+document.body.appendChild(pluginBar);
+function registerPluginButton(label: string, cb: () => void): void {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.textContent = label;
+  btn.addEventListener("click", cb);
+  pluginBar.appendChild(btn);
+}
+
+/** Executes a plugin's source in the page via a blob script URL. */
+function runPlugin(code: string, name: string): void {
+  const blob = new Blob([code], { type: "text/javascript" });
+  const url = URL.createObjectURL(blob);
+  const script = document.createElement("script");
+  script.src = url;
+  script.onerror = () => console.warn(`Plugin ${name} failed to load`);
+  script.onload = () => URL.revokeObjectURL(url);
+  document.head.appendChild(script);
+}
+
+/** Loads all enabled plugins from the backend at startup. */
+async function loadPlugins(): Promise<void> {
+  if (!("__TAURI_INTERNALS__" in window)) return;
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const files = await invoke<string[]>("list_plugins");
+    for (const file of files) {
+      const name = file.replace(/\.js$/i, "");
+      if (!settings.plugins.enabled.includes(name)) continue;
+      const code = await invoke<string | null>("load_plugin", { name });
+      if (code) runPlugin(code, name);
+    }
+  } catch (err) {
+    console.warn("Plugin load failed", err);
+  }
+}
 
 // Status badges read these; the hex strings mirror the scene constants.
 const gridStepEl = document.getElementById("st-gridstep")!;
@@ -181,6 +258,8 @@ if (settings.general.hdriPath) {
   void loadHDRIPath(settings.general.hdriPath);
 }
 await setLanguage(settings.general.language);
+// Load user plugins after settings and language are ready.
+void loadPlugins();
 
 // Inline the animated line-md icons into every element carrying a
 // data-icon attribute (dialog headers, about link). Static HTML only;
@@ -339,6 +418,8 @@ function refreshStatusIcons(): void {
     proj.title = t("status.projection");
   }
   updateStatusBadges();
+  // Notify plugins that the view state changed.
+  (vk as any)._emitView?.();
 }
 
 async function toggleFullscreen(): Promise<void> {
@@ -733,7 +814,7 @@ const menus: MenuDef[] = [
     icon: "construction",
     items: [
       { label: () => t("menu.settings"), icon: "cog-loop", action: showSettings },
-      { label: () => t("menu.plugins"), icon: "document-code", action: () => pluginsDialog.showModal() },
+      { label: () => t("menu.plugins"), icon: "document-code", action: () => void showPlugins() },
       { label: () => t("menu.update"), icon: "downloading-loop", action: () => void checkForUpdates() },
       { label: () => t("menu.hdri"), icon: "image", action: () => void openHDRIDialog() },
       { label: () => t("menu.resetHdri"), action: resetHDRI },
@@ -752,6 +833,7 @@ const menuBar = createMenuBar(document.getElementById("menubar")!, menus);
 viewer.onAnimationChange = () => {
   updateAnimationBadge();
   menuBar.refreshOpenMenu();
+  (vk as any)._emitAnim?.();
 };
 updateAnimationBadge();
 // With several clips the badge also acts as a "next clip" button.
@@ -803,7 +885,53 @@ for (const catButton of settingsDialog.querySelectorAll<HTMLButtonElement>(".set
     }
   });
 }
+/** Fills the plugin list with a checkbox per discovered .js file. */
+async function showPlugins(): Promise<void> {
+  const list = document.getElementById("plugins-list")!;
+  list.replaceChildren();
+  let files: string[] = [];
+  if ("__TAURI_INTERNALS__" in window) {
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      files = await invoke<string[]>("list_plugins");
+    } catch (err) {
+      console.warn("Could not list plugins", err);
+    }
+  }
+  if (files.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "dialog-note";
+    empty.textContent = t("plugins.empty");
+    list.appendChild(empty);
+  }
+  for (const file of files) {
+    const name = file.replace(/\.js$/i, "");
+    const row = document.createElement("label");
+    row.className = "plugin-row";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = settings.plugins.enabled.includes(name);
+    cb.addEventListener("change", () => {
+      const enabled = settings.plugins.enabled.filter((n) => n !== name);
+      if (cb.checked) enabled.push(name);
+      setSetting("plugins", "enabled", enabled);
+    });
+    const label = document.createElement("span");
+    label.textContent = file;
+    row.append(cb, label);
+    list.appendChild(row);
+  }
+  pluginsDialog.showModal();
+}
+
 document.getElementById("plugins-close")!.addEventListener("click", () => pluginsDialog.close());
+document.getElementById("plugins-open-folder")!.addEventListener("click", async () => {
+  if (!("__TAURI_INTERNALS__" in window)) return;
+  const { invoke } = await import("@tauri-apps/api/core");
+  await invoke("open_plugins_folder").catch((err) => console.warn("Could not open plugins folder", err));
+});
+
+
 document.getElementById("help-close-x")!.addEventListener("click", () => helpDialog.close());
 
 document.getElementById("set-launch-maximized")!.addEventListener("change", (e) => {
@@ -1212,6 +1340,8 @@ async function loadModel(buffer: ArrayBuffer, name: string): Promise<boolean> {
     // Refresh status icons too: skeleton availability/state and the HDRI
     // icon depend on the freshly loaded model.
     refreshStatusIcons();
+    // Notify plugins: a model was loaded.
+    (vk as any)._emitModel?.(modelInfoForPlugin());
     return true;
   } catch (err) {
     if (seq !== loadingSeq) return false;

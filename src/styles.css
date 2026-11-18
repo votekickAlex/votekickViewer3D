@@ -873,6 +873,37 @@ dialog h3:first-child {
   margin-top: 12px;
 }
 
+/* Plugins list: name + enable checkbox, scrolls if many plugins. */
+.plugins-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.plugin-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.plugin-row span {
+  flex: 1;
+}
+
+/* Buttons registered by plugins, docked below the menu bar. */
+#plugin-bar {
+  position: absolute;
+  top: 38px;
+  left: 12px;
+  display: flex;
+  gap: 6px;
+  z-index: 30;
+}
+
 .dialog-actions {
   display: flex;
   justify-content: flex-end;

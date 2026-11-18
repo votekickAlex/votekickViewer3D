@@ -181,7 +181,9 @@ export const ENGLISH: Record<string, string> = {
   "help.siblingModels": "Previous / next model in the folder",
 
   "plugins.title": "Plugins",
-  "plugins.todo": "TODO: custom user plugins are planned for a future version.",
+  "plugins.hint": "Put .js files in the plugins folder to add features. Plugins run with full access to the app page.",
+  "plugins.openFolder": "Open folder",
+  "plugins.empty": "No plugins found.",
 
   "dialog.close": "Close",
   "dialog.ok": "OK",

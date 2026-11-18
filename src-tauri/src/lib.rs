@@ -22,6 +22,7 @@ fn ensure_data_dirs(app: &tauri::App) {
         let _ = std::fs::create_dir_all(base.join("cfg"));
         let _ = std::fs::create_dir_all(base.join("cache"));
         let _ = std::fs::create_dir_all(base.join("lang"));
+        let _ = std::fs::create_dir_all(base.join("plugins"));
         // Clean up installers downloaded by a previous auto-update: each
         // fresh launch starts with an empty update folder.
         let update_dir = base.join("cache").join("update");
@@ -74,6 +75,59 @@ fn lang_dir(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
         .data_dir()
         .ok()
         .map(|roaming| roaming.join(DATA_DIR_NAME).join("lang"))
+}
+
+/// Folder with user-provided JavaScript plugins:
+/// %APPDATA%\votekickViewer3D\plugins
+fn plugins_dir(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
+    app.path()
+        .data_dir()
+        .ok()
+        .map(|roaming| roaming.join(DATA_DIR_NAME).join("plugins"))
+}
+
+/// Names of the .js plugin files in the plugins folder, sorted.
+#[tauri::command]
+fn list_plugins(app: tauri::AppHandle) -> Vec<String> {
+    let mut names = Vec::new();
+    if let Some(dir) = plugins_dir(&app) {
+        if let Ok(entries) = std::fs::read_dir(&dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().and_then(|e| e.to_str()).is_some_and(|e| e.eq_ignore_ascii_case("js")) {
+                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                        names.push(name.to_string());
+                    }
+                }
+            }
+        }
+    }
+    names.sort();
+    names
+}
+
+/// Source code of one plugin file.
+#[tauri::command]
+fn load_plugin(app: tauri::AppHandle, name: String) -> Option<String> {
+    // Reject path separators: only plain file names inside the folder.
+    if name.contains(['\\', '/', ':', '.']) {
+        return None;
+    }
+    let dir = plugins_dir(&app)?;
+    std::fs::read_to_string(dir.join(format!("{name}.js"))).ok()
+}
+
+/// Opens the plugins folder in the system file manager.
+#[tauri::command]
+fn open_plugins_folder(app: tauri::AppHandle) -> Result<(), String> {
+    let dir = plugins_dir(&app).ok_or_else(|| "no data directory".to_string())?;
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    #[cfg(windows)]
+    std::process::Command::new("explorer")
+        .arg(&dir)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 /// Names (file stems) of the user-provided language files in the lang
@@ -370,7 +424,10 @@ pub fn run() {
             log_error,
             list_languages,
             load_language,
-            save_language_template
+            save_language_template,
+            list_plugins,
+            load_plugin,
+            open_plugins_folder
         ])
         .setup(|app| {
             ensure_data_dirs(app);

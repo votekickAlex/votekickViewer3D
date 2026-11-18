@@ -39,6 +39,10 @@ export const DEFAULTS = {
     // Optional absolute path to an .hdr file used as the scene environment.
     hdriPath: "",
   },
+  plugins: {
+    // File names (without .js) of enabled plugins.
+    enabled: [] as string[],
+  },
   hotkeys: {
     open: "O",
     grid: "G",
