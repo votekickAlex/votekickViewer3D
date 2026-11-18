@@ -246,16 +246,49 @@ button:focus-visible {
  * the same cluster gap on both sides of its dot */
 .status-sep {
   opacity: 0.55;
+  width: 10px;
+  text-align: center;
 }
 
 .status-sep::before {
   content: "\00B7";
 }
 
-/* when the grid step hides (grid off) its trailing separator hides too,
- * so no double dots are left behind */
-#st-gridstep[hidden] + .status-sep {
-  display: none;
+/* Fixed widths: the right cluster is pinned to the edge, so a changing
+ * badge width (Auto -> m, Perspective -> Orthographic, fps digits)
+ * would otherwise shift the clickable icons left. Center the text so
+ * the middot separators still keep even gaps. */
+#st-gridstep {
+  min-width: 80px;
+  text-align: center;
+}
+
+#st-units {
+  min-width: 42px;
+  text-align: center;
+}
+
+#st-proj {
+  min-width: 88px;
+  text-align: center;
+}
+
+#status-fps {
+  min-width: 46px;
+  text-align: center;
+}
+
+/* Reserve the badge's space while the grid is off: the UA [hidden] rule
+ * sets display:none, which would shrink the cluster and move the icons
+ * under the pointer. Override it, hide visually only. */
+#st-gridstep[hidden] {
+  display: inline;
+  visibility: hidden;
+}
+
+/* keep the separator's box (without the dot) while the badge is hidden */
+#st-gridstep[hidden] + .status-sep::before {
+  content: "";
 }
 
 /* Model size readout on the left, next to the file stats; the grid step

@@ -227,10 +227,13 @@ export class Viewer {
 
     const grid = new THREE.GridHelper(extent, Viewer.GRID_CELLS, GRID_CENTER_COLOR, color.getHex());
     const mat = grid.material as THREE.LineBasicMaterial;
-    // Fully opaque, depth test off and drawn last: the grid stays a solid
-    // constant-color overlay on top of the model instead of hiding behind
-    // it or bleeding through it.
-    mat.depthTest = false;
+    // Depth test on: the model hides the grid, so lines do not bleed
+    // through solid surfaces. Still drawn last (renderOrder 10) and
+    // tone-mapping off, so the grid keeps its exact color where it is
+    // actually visible. Tone mapping also makes the depth comparison
+    // stable: no brighter outline around the model's silhouette.
+    mat.depthTest = true;
+    mat.depthWrite = false;
     mat.toneMapped = false;
     if (alpha < 1) {
       mat.transparent = true;
