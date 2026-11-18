@@ -24,7 +24,7 @@ export const ENGLISH: Record<string, string> = {
   "menu.plugins": "Plugins…",
   "menu.update": "Update",
   "menu.hdri": "Load HDRI…",
-  "menu.resetHdri": "Reset HDRI to default",
+  "menu.resetHdri": "Reset HDRI",
   "menu.fullscreen": "Full screen",
   "menu.interface": "Interface",
   "menu.boundingBox": "Bounding box",
