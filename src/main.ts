@@ -171,6 +171,7 @@ viewer.setAxesVisible(settings.view.axes);
 viewer.setGridColor(settings.view.gridColor);
 viewer.setWireframeColor(settings.view.wireframeColor);
 viewer.setBBoxColor(settings.view.bboxColor);
+viewer.setBackgroundColor(settings.view.backgroundColor);
 viewer.setAxesOpacity(settings.view.axesOpacity);
 await setLanguage(settings.general.language);
 
@@ -490,9 +491,13 @@ function showSettings(): void {
   axesOpacity.value = String(settings.view.axesOpacity);
   (document.getElementById("axes-opacity-value") as HTMLElement).textContent =
     `${settings.view.axesOpacity}%`;
-  for (const id of ["set-grid-color", "set-wireframe-color", "set-bbox-color"]) {
-    const key = id.replace("set-", "").replace("-color", "Color") as
-      | "gridColor" | "wireframeColor" | "bboxColor";
+  const swatchKeys = {
+    "set-grid-color": "gridColor",
+    "set-wireframe-color": "wireframeColor",
+    "set-bbox-color": "bboxColor",
+    "set-bg-color": "backgroundColor",
+  } as const;
+  for (const [id, key] of Object.entries(swatchKeys)) {
     (document.getElementById(id) as HTMLButtonElement).style.background =
       settings.view[key];
   }
@@ -768,10 +773,11 @@ versionEl.addEventListener("click", () => void checkForUpdates());
 
 // Viewport colors (Settings > Colors): a ShareX style picker per row,
 // persisted and applied on OK.
-const COLOR_ROWS: { id: string; key: "gridColor" | "wireframeColor" | "bboxColor"; apply: (hex: string) => void }[] = [
+const COLOR_ROWS: { id: string; key: "gridColor" | "wireframeColor" | "bboxColor" | "backgroundColor"; apply: (hex: string) => void }[] = [
   { id: "set-grid-color", key: "gridColor", apply: (hex) => viewer.setGridColor(hex) },
   { id: "set-wireframe-color", key: "wireframeColor", apply: (hex) => viewer.setWireframeColor(hex) },
   { id: "set-bbox-color", key: "bboxColor", apply: (hex) => viewer.setBBoxColor(hex) },
+  { id: "set-bg-color", key: "backgroundColor", apply: (hex) => viewer.setBackgroundColor(hex) },
 ];
 
 for (const row of COLOR_ROWS) {

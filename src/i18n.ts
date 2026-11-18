@@ -122,6 +122,7 @@ export const ENGLISH: Record<string, string> = {
   "settings.gridColor": "Grid",
   "settings.wireframeColor": "Wireframe",
   "settings.bboxColor": "Bounding box",
+  "settings.backgroundColor": "Background",
   "picker.title": "Color picker",
   "picker.red": "Red",
   "picker.green": "Green",

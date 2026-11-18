@@ -121,7 +121,9 @@ modes).
 - **Tools**: Settings, Plugins and Update (checks for a newer version).
 - **Settings** has three categories: General (launch maximized, always on
   top, world axes, display units, language), Colors (grid, wireframe,
-  bounding box, axes opacity) and Hotkeys.
+  bounding box, axes opacity, background) and Hotkeys. Default colors:
+  grid `#404040`, wireframe `#808080` at 50% alpha, bounding box
+  `#0080FF`, background `#1c1f24`.
 - Clicking the version in the status bar or in About checks GitHub for
   updates and offers automatic installation or a manual download.
 - **Languages**: plain JSON files. On first launch

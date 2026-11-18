@@ -11,8 +11,10 @@ export const DEFAULTS = {
     // the View menu, Settings or the A hotkey.
     axes: true,
     gridColor: "#404040",
-    wireframeColor: "#00FFFF",
+    wireframeColor: "#80808080",
     bboxColor: "#0080FF",
+    // Viewport background behind the model; matches the old fixed color.
+    backgroundColor: "#1c1f24",
     // Axis line opacity in percent (Settings > Colors slider).
     axesOpacity: 100,
   },

@@ -4,10 +4,11 @@ import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment
 
 const BG_COLOR = 0x1c1f24;
 /** Fallback grid color; the persisted setting overrides it at startup. */
-const DEFAULT_GRID_COLOR = "#b03a3a";
+const DEFAULT_GRID_COLOR = "#404040";
 const GRID_CENTER_COLOR = 0x565d68;
-const DEFAULT_BBOX_COLOR = "#4f9cf9";
-const DEFAULT_WIREFRAME_COLOR = "#ffffff";
+const DEFAULT_BBOX_COLOR = "#0080ff";
+/** Fallback wireframe color; the persisted setting overrides it at startup. */
+const DEFAULT_WIREFRAME_COLOR = "#80808080";
 const UP = new THREE.Vector3(0, 1, 0);
 
 /** Small margin added when fitting the bounding box to the viewport, so
@@ -753,6 +754,12 @@ export class Viewer {
   setWireframeColor(hex: string): void {
     this.wireframeMaterial.color = parseHexColor(hex).color;
     this.applyHexAlpha(this.wireframeMaterial, hex);
+  }
+
+  /** Flat viewport background color behind the model. */
+  setBackgroundColor(hex: string): void {
+    const { color } = parseHexColor(hex);
+    this.scene.background = color;
   }
 
   /** Color of the bounding box edges (Settings > Colors). */
