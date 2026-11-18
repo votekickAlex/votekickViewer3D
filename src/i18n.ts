@@ -15,6 +15,7 @@ export const ENGLISH: Record<string, string> = {
   "menu.tools": "Tools",
   "menu.help": "Help",
   "menu.open": "Open…",
+  "menu.close": "Close model",
   "menu.quit": "Quit",
   "menu.grid": "Grid",
   "menu.wireframe": "Wireframe",

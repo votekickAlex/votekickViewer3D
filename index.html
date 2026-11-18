@@ -65,6 +65,10 @@
               <input type="checkbox" id="set-remember-fullscreen" />
               <span data-i18n="settings.rememberFullscreen">Remember fullscreen state</span>
             </label>
+            <label class="setting-row">
+              <input type="checkbox" id="set-axes-visible" />
+              <span data-i18n="settings.showAxes">Show world axes</span>
+            </label>
             <h3 data-i18n="settings.units">Display units</h3>
             <select id="set-units" class="setting-select"></select>
             <p class="dialog-note" data-i18n="settings.unitsHint">Model size and grid step readouts. Auto assumes the file unit is a meter (the glTF standard); for unitless formats authored in another unit pick it here. Hotkey M cycles the modes.</p>
@@ -90,10 +94,6 @@
               <span data-i18n="settings.axesOpacity">Axes opacity</span>
               <input type="range" id="set-axes-opacity" min="0" max="100" step="5" />
               <span id="axes-opacity-value"></span>
-            </label>
-            <label class="setting-row">
-              <input type="checkbox" id="set-axes-visible" />
-              <span data-i18n="settings.showAxes">Show world axes</span>
             </label>
           </section>
           <section class="settings-pane" data-cat="hotkeys" hidden>

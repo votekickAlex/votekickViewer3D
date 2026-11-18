@@ -292,13 +292,16 @@ export class Viewer {
     const alpha = Math.min(Math.max(percent, 0), 100) / 100;
     this.axesOpacity = alpha;
     for (const material of this.axisMaterials) {
-      if (alpha < 1) {
-        material.transparent = true;
-        material.opacity = alpha;
-      } else {
-        material.transparent = false;
-        material.opacity = 1;
+      const transparent = alpha < 1;
+      if (material.transparent !== transparent) {
+        // Toggling transparent after the first render needs a shader
+        // recompile; otherwise opacity is ignored until the axes are
+        // rebuilt (which used to make the slider work only after a
+        // model was loaded).
+        material.transparent = transparent;
+        material.needsUpdate = true;
       }
+      material.opacity = transparent ? alpha : 1;
     }
   }
 

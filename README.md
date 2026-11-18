@@ -112,14 +112,14 @@ modes).
 
 ### Menu bar, settings and languages
 
-- **File**: Open, Help, Quit.
+- **File**: Open, Close model, Help, Quit.
 - **View**: Reset view, Orthographic, the six axis views, Grid, Wireframe,
   Bounding box, Fullscreen, Interface; toggles show their state with a
   checkmark.
 - **Tools**: Settings, Plugins (a stub for a future plugin system).
 - **Settings** has three categories: General (launch maximized, always on
-  top, language, display units), Colors (grid, wireframe, bounding box,
-  axes opacity) and Hotkeys.
+  top, world axes, display units, language), Colors (grid, wireframe,
+  bounding box, axes opacity) and Hotkeys.
 - **Languages**: plain JSON files. On first launch
   `english.json` is created in `%APPDATA%\votekickViewer3D\lang`; copy it,
   translate, rename to your language, put it back and it appears in the

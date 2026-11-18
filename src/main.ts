@@ -591,6 +591,7 @@ const menus: MenuDef[] = [
     icon: "file",
     items: [
       { label: () => t("menu.open"), hint: () => settings.hotkeys.open, icon: "folder-arrow-right", action: openFileDialog },
+      { label: () => t("menu.close"), icon: "close-small", action: closeModel },
       { label: () => t("menu.help"), hint: "F1", icon: "question-circle", action: showHelp },
       { label: () => t("menu.quit"), hint: () => settings.hotkeys.quit, icon: "logout", action: () => void quitApp() },
     ],
@@ -980,9 +981,20 @@ function countTriangles(root: THREE.Object3D): number {
   return tris;
 }
 
-function handleLoadError(err: unknown, name: string): void {
+/** File > Close: unload the current model, leaving an empty scene. */
+function closeModel(): void {
   viewer.clearModel();
-  updateStatusBadges();
+  currentModelPath = null;
+  document.title = APP_TITLE;
+  setStatus(t("status.noModel"));
+  setLoading(false);
+  refreshStatusIcons();
+  updateAnimationBadge();
+  menuBar.refreshOpenMenu();
+}
+
+function handleLoadError(err: unknown, name: string): void {
+  closeModel();
   console.error(err);
   const message = err instanceof Error ? err.message : String(err);
   const line = `Failed: ${name} - ${message}`;
