@@ -20,6 +20,8 @@ export interface MenuItemDef {
   /** Name from the icon set (src/icons.ts), rendered before the label. */
   icon?: string;
   action?: () => void;
+  /** Nested items: the row opens a submenu instead of running an action. */
+  submenu?: MenuItemDef[] | (() => MenuItemDef[]);
 }
 
 export interface MenuDef {
@@ -115,9 +117,49 @@ export function createMenuBar(
         hint.textContent = text(item.hint);
         row.appendChild(hint);
       }
+      // A row with submenu opens a nested dropdown instead of an action.
+      let sub: HTMLElement | null = null;
+      if (item.submenu) {
+        row.classList.add("has-submenu");
+        const closeSub = (): void => {
+          sub?.remove();
+          sub = null;
+          row.classList.remove("submenu-open");
+        };
+        const openSub = (): void => {
+          if (sub) return;
+          closeSub();
+          // Close any sibling submenu before opening this one.
+          dropdown.querySelectorAll(".has-submenu.submenu-open").forEach((r) => {
+            r.classList.remove("submenu-open");
+            if (r.nextElementSibling?.classList.contains("menu-subdropdown")) {
+              r.nextElementSibling.remove();
+            }
+          });
+          sub = buildDropdown({ label: "", items: item.submenu! });
+          sub.classList.add("menu-subdropdown");
+          row.insertAdjacentElement("afterend", sub);
+          row.classList.add("submenu-open");
+        };
+        row.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (sub) closeSub(); else openSub();
+        });
+        row.addEventListener("mouseenter", openSub);
+        // Rebuilt on every open; submenu removal is handled by closeSub on
+        // the next mouseleave of the row or click elsewhere.
+        row.addEventListener("mouseleave", () => {
+          // Small deferral lets the pointer cross the gap to the submenu.
+          window.setTimeout(() => {
+            if (sub && !sub.matches(":hover") && !row.matches(":hover")) closeSub();
+          }, 120);
+        });
+      }
       row.addEventListener("click", () => {
-        closeAll();
-        item.action?.();
+        if (!item.submenu) {
+          closeAll();
+          item.action?.();
+        }
       });
       dropdown.appendChild(row);
     }

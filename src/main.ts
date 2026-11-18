@@ -659,6 +659,9 @@ const menus: MenuDef[] = [
     items: [
       { label: () => t("menu.settings"), icon: "cog-loop", action: showSettings },
       { label: () => t("menu.plugins"), icon: "document-code", action: () => pluginsDialog.showModal() },
+      { label: () => t("menu.update"), submenu: () => [
+        { label: () => t("menu.checkUpdate"), action: () => void checkForUpdates() },
+      ] },
     ],
   },
   {
@@ -818,6 +821,8 @@ let pendingUpdate: UpdateInfo | null = null;
  * update dialog; called by clicking the version badge or About version. */
 async function checkForUpdates(): Promise<void> {
   pendingUpdate = null;
+  versionEl.classList.remove("update-available");
+  versionEl.title = `!votekickViewer3D v${APP_VERSION}. ${t("update.clickHint")}`;
   updateDetailsEl.hidden = true;
   updateAutoBtn.hidden = true;
   updateManualBtn.hidden = true;
@@ -855,11 +860,16 @@ async function checkForUpdates(): Promise<void> {
     return;
   }
   pendingUpdate = info;
+  // Highlight the version badge in the Z-axis green while an update exists.
+  versionEl.classList.add("update-available");
+  versionEl.title = t("update.availableTitle", { version: info.version });
   updateStatusEl.textContent = t("update.available");
   updateVersionEl.textContent = t("update.newVersion", { version: info.version });
   updateNotesEl.textContent = info.notes || t("update.noNotes");
   updateDetailsEl.hidden = false;
-  updateManualBtn.hidden = !info.download_url && !info.page_url;
+  // Always offer the manual button as a fallback: some releases have no
+  // setup.exe asset or page URL, but the user still gets a visible action.
+  updateManualBtn.hidden = false;
   // Automatic update needs the backend to download and run the installer.
   updateAutoBtn.hidden = !("__TAURI_INTERNALS__" in window) || !info.download_url;
 }
@@ -867,7 +877,8 @@ async function checkForUpdates(): Promise<void> {
 /** Manual: open the release page / installer in the system browser. */
 async function manualUpdate(): Promise<void> {
   if (!pendingUpdate) return;
-  const url = pendingUpdate.page_url || pendingUpdate.download_url;
+  const url = pendingUpdate.page_url ||
+    (pendingUpdate.version ? `https://github.com/votekickAlex/votekickViewer3D/releases/tag/v${pendingUpdate.version}` : "");
   if (!url) return;
   if ("__TAURI_INTERNALS__" in window) {
     const { openUrl } = await import("@tauri-apps/plugin-opener");

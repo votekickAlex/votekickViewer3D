@@ -118,7 +118,8 @@ modes).
 - **View**: Reset view, Orthographic, the six axis views, Grid, Wireframe,
   Bounding box, Fullscreen, Interface; toggles show their state with a
   checkmark.
-- **Tools**: Settings, Plugins (a stub for a future plugin system).
+- **Tools**: Settings, Plugins and a nested Update menu with Check for
+  updates.
 - **Settings** has three categories: General (launch maximized, always on
   top, world axes, display units, language), Colors (grid, wireframe,
   bounding box, axes opacity) and Hotkeys.
