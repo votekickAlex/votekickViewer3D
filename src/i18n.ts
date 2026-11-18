@@ -23,7 +23,6 @@ export const ENGLISH: Record<string, string> = {
   "menu.settings": "Settings…",
   "menu.plugins": "Plugins…",
   "menu.update": "Update",
-  "menu.checkUpdate": "Check for updates…",
   "menu.fullscreen": "Full screen",
   "menu.interface": "Interface",
   "menu.boundingBox": "Bounding box",

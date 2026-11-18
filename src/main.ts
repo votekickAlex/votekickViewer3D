@@ -659,9 +659,7 @@ const menus: MenuDef[] = [
     items: [
       { label: () => t("menu.settings"), icon: "cog-loop", action: showSettings },
       { label: () => t("menu.plugins"), icon: "document-code", action: () => pluginsDialog.showModal() },
-      { label: () => t("menu.update"), submenu: () => [
-        { label: () => t("menu.checkUpdate"), action: () => void checkForUpdates() },
-      ] },
+      { label: () => t("menu.update"), icon: "downloading-loop", action: () => void checkForUpdates() },
     ],
   },
   {

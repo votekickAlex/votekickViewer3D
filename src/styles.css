@@ -121,24 +121,6 @@ body {
   background: var(--panel-hover);
 }
 
-/* submenu indicator arrow at the right edge of a parent row */
-.menu-item.has-submenu::after {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-right: 1.5px solid var(--text-dim);
-  border-top: 1.5px solid var(--text-dim);
-  transform: rotate(45deg);
-  margin-left: auto;
-}
-
-/* nested dropdown: opens to the right of its parent row */
-.menu-subdropdown {
-  left: 100%;
-  top: -4px;
-  transform: none;
-}
-
 /* Keyboard focus uses the same unobtrusive highlight as mouse hover, no
    white focus rectangle. */
 button:focus-visible {
