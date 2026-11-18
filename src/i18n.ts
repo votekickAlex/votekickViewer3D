@@ -37,6 +37,7 @@ export const ENGLISH: Record<string, string> = {
   "menu.bottom": "Bottom",
   "menu.playPause": "Play / pause animation",
   "menu.axes": "World axes",
+  "menu.skeleton": "Skeleton",
   "menu.nextClip": "Next animation clip",
   "menu.prevClip": "Previous animation clip",
   "menu.about": "About",
@@ -78,6 +79,9 @@ export const ENGLISH: Record<string, string> = {
     "Bounding box size of the model, each dimension colored like its axis; Auto mode shows plain numbers scaled by magnitude (the world unit is assumed to be a meter) unless another unit is picked in Settings",
 
   "status.axes": "World axes; the axis the camera looks straight along is gray",
+
+  "status.skeletonOff": "Show model skeleton (only for models with bones)",
+  "status.skeletonOn": "Hide model skeleton",
 
   "status.hdriOff": "Default studio lighting. Click to enable HDRI, right-click for preview, Alt+drag to rotate",
   "status.hdriOn": "Custom HDRI active. Click to disable, right-click to toggle preview, Alt+drag to rotate",

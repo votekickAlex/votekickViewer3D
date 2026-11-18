@@ -219,6 +219,14 @@ function toggleAxes(): void {
   if (checkbox) checkbox.checked = on;
 }
 
+/** View > Skeleton: toggle the bone helper (only for animated models). */
+function toggleSkeleton(): void {
+  if (!viewer.skeletonAvailable) return;
+  viewer.setSkeletonVisible(!viewer.skeletonVisible);
+  refreshStatusIcons();
+  menuBar.refreshOpenMenu();
+}
+
 /** Num 5 / View > Orthographic: projection toggle with a status badge. */
 function toggleOrtho(): void {
   viewer.setOrthographic(!viewer.orthographic);
@@ -313,6 +321,7 @@ function refreshStatusIcons(): void {
     ["st-bbox", () => viewer.bboxVisible, () => t("menu.boundingBox"), true],
     ["st-fullscreen", () => fullscreenOn, () => t("menu.fullscreen"), true],
     ["st-axes-toggle", () => settings.view.axes, () => t("menu.axes"), true],
+    ["st-skeleton", () => viewer.skeletonVisible, () => viewer.skeletonVisible ? t("status.skeletonOn") : t("status.skeletonOff"), true],
     ["st-hdri", () => viewer.hdriLoaded, () => t("status.hdriOff"), true],
   ];
   for (const [id, on, title, clickable] of states) {
@@ -694,6 +703,7 @@ const menus: MenuDef[] = [
         { label: () => t("menu.wireframe"), hint: () => settings.hotkeys.wireframe, checked: () => viewer.wireframeOn, icon: "hash", action: toggleWireframe },
         { label: () => t("menu.boundingBox"), hint: () => settings.hotkeys.boundingBox, checked: () => viewer.bboxVisible, icon: "square", action: toggleBBox },
         { label: () => t("menu.axes"), hint: () => settings.hotkeys.axes, checked: () => settings.view.axes, icon: "axes", action: toggleAxes },
+        ...(viewer.skeletonAvailable ? [{ label: () => t("menu.skeleton"), checked: () => viewer.skeletonVisible, icon: "skeleton", action: toggleSkeleton }] : []),
         { label: () => t("menu.fullscreen"), hint: () => settings.hotkeys.fullscreen, checked: () => fullscreenOn, icon: "arrows-diagonal", action: () => void toggleFullscreen() },
         { label: () => t("menu.interface"), hint: () => settings.hotkeys.interface, checked: () => !uiHidden, icon: "monitor-screenshot", action: toggleInterface },
       ];
@@ -749,6 +759,7 @@ document.getElementById("st-wireframe")!.addEventListener("click", toggleWirefra
 document.getElementById("st-bbox")!.addEventListener("click", toggleBBox);
 document.getElementById("st-fullscreen")!.addEventListener("click", () => void toggleFullscreen());
 document.getElementById("st-axes-toggle")!.addEventListener("click", toggleAxes);
+document.getElementById("st-skeleton")!.addEventListener("click", toggleSkeleton);
 document.getElementById("st-hdri")!.addEventListener("click", () => {
   if (viewer.hdriLoaded) {
     viewer.resetHDRI();

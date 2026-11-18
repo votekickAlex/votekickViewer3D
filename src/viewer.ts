@@ -83,6 +83,9 @@ export class Viewer {
   /** Set by main.ts to refresh the animation status readout. */
   onAnimationChange: (() => void) | null = null;
   private modelRoot: THREE.Group;
+  /** Skeleton helper created for models with bones (Fox, CesiumMan...). */
+  private skeletonHelper: THREE.SkeletonHelper | null = null;
+  private skeletonOn = false;
   /** PMREM generator and the built-in studio environment; an HDRI loaded
    * from a file replaces it (and is disposed when reset). */
   private readonly pmrem!: THREE.PMREMGenerator;
@@ -443,6 +446,9 @@ export class Viewer {
     this.camera.up.set(0, 1, 0);
     this.orthoCamera.up.set(0, 1, 0);
     this.frameModel(true);
+    // Build the skeleton helper after framing: its lines must not affect
+    // the model bounding box used to fit the camera.
+    this.rebuildSkeleton();
     // Bind and auto-play the first animation clip, if the file has any.
     this.clips = clips;
     if (clips.length > 0) {
@@ -1180,6 +1186,44 @@ export class Viewer {
     return this.bboxHelper.visible;
   }
 
+  // ---------- skeleton display ----------
+
+  get skeletonAvailable(): boolean {
+    return this.skeletonHelper !== null;
+  }
+
+  get skeletonVisible(): boolean {
+    return this.skeletonOn;
+  }
+
+  setSkeletonVisible(visible: boolean): void {
+    this.skeletonOn = visible && this.skeletonHelper !== null;
+    if (this.skeletonHelper) this.skeletonHelper.visible = this.skeletonOn;
+  }
+
+  /** Creates a SkeletonHelper for the root bone hierarchy of the loaded
+   * model, if it has any bones. It is a child of modelRoot so it follows
+   * the model and animates with the skeleton. */
+  private rebuildSkeleton(): void {
+    this.skeletonHelper?.removeFromParent();
+    this.skeletonHelper = null;
+    let source: THREE.Object3D | null = null;
+    this.modelRoot.traverse((obj) => {
+      if (source) return;
+      const skinned = obj as THREE.SkinnedMesh;
+      if (skinned.isSkinnedMesh && skinned.skeleton?.bones.length) source = obj;
+    });
+    if (!source) return;
+    const helper = new THREE.SkeletonHelper(source);
+    const material = helper.material as THREE.LineBasicMaterial;
+    material.depthTest = false;
+    material.toneMapped = false;
+    helper.renderOrder = 12;
+    helper.visible = this.skeletonOn;
+    this.modelRoot.add(helper);
+    this.skeletonHelper = helper;
+  }
+
   /** Recomputes the Box3 the helper renders; called when a model loads or
    * the box is toggled on. */
   private refreshBBox(): void {
@@ -1231,6 +1275,10 @@ export class Viewer {
   }
 
   private disposeModel(): void {
+    // Remove the skeleton helper first (it is a LineSegments child of the
+    // model root, not a mesh, so the traversal below would skip it).
+    this.skeletonHelper?.removeFromParent();
+    this.skeletonHelper = null;
     // Overlays share their geometry with the model meshes; dropping them
     // first keeps the shared wireframe material alive and avoids double
     // disposal.
