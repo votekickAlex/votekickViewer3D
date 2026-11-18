@@ -116,7 +116,8 @@ modes).
 
 - **File**: Open, Close model, Help, Quit.
 - **View**: Reset view, Orthographic, the six axis views, Grid, Wireframe,
-  Bounding box, Fullscreen, Interface; toggles show their state with a
+  Bounding box, World axes, Fullscreen, Interface and, for animated models,
+  Play / pause and previous / next clip; toggles show their state with a
   checkmark.
 - **Tools**: Settings, Plugins and Update (checks for a newer version).
 - **Settings** has three categories: General (launch maximized, always on
@@ -142,7 +143,7 @@ npm run release   # builds installer + portable zip into release/
 
 ## TODO
 
-- Nothing at the moment. The backlog is empty.
+- Plugins support
 
 ## License
 
