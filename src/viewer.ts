@@ -96,6 +96,9 @@ export class Viewer {
   private previewCamera = new THREE.PerspectiveCamera(50, 1, 0.1, 10);
   private previewMesh: THREE.Mesh | null = null;
   hdriPreviewOn = false;
+  /** Horizontal rotation of the HDRI (radians), shared by the scene
+   * environment and the preview sphere. */
+  private hdriYaw = 0;
   private wireframe = false;
   /** Shared material for the wireframe overlay: one flat, user-colored
    * look drawn on top of the intact solid model. */
@@ -139,7 +142,9 @@ export class Viewer {
     // HDRI preview sphere: a separate scene rendered into a small corner
     // viewport, like Blender's world preview.
     this.previewCamera.position.set(0, 0, 3);
-    this.previewScene.background = new THREE.Color(BG_COLOR);
+    // Keep the preview backdrop in sync with the viewport background,
+    // so changing the Background color never leaves a stale square.
+    this.previewScene.background = this.scene.background;
     this.previewScene.add(new THREE.AmbientLight(0xffffff, 0.4));
 
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.01, 4000);
@@ -196,6 +201,33 @@ export class Viewer {
       toneMapped: false,
     });
     this.applyHexAlpha(this.wireframeMaterial, DEFAULT_WIREFRAME_COLOR);
+
+    // Alt + left-drag rotates the HDRI instead of orbiting the camera.
+    // Capture phase stops OrbitControls from seeing the gesture.
+    let hdriDragging = false;
+    let lastX = 0;
+    container.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0 || !e.altKey || !this.hdriLoaded) return;
+      e.preventDefault();
+      e.stopPropagation();
+      hdriDragging = true;
+      lastX = e.clientX;
+      container.setPointerCapture(e.pointerId);
+    }, true);
+    container.addEventListener("pointermove", (e) => {
+      if (!hdriDragging) return;
+      e.preventDefault();
+      e.stopPropagation();
+      this.rotateHDRI(e.clientX - lastX);
+      lastX = e.clientX;
+    }, true);
+    const endDrag = (e: PointerEvent): void => {
+      if (!hdriDragging) return;
+      hdriDragging = false;
+      if (container.hasPointerCapture(e.pointerId)) container.releasePointerCapture(e.pointerId);
+    };
+    container.addEventListener("pointerup", endDrag, true);
+    container.addEventListener("pointercancel", endDrag, true);
 
     new ResizeObserver(() => this.resize()).observe(container);
     this.resize();
@@ -796,6 +828,8 @@ export class Viewer {
     // Keep the source texture for the preview sphere (not disposed).
     this.hdriTexture?.dispose();
     this.hdriTexture = texture;
+    this.hdriYaw = 0;
+    this.scene.environmentRotation.y = 0;
     this.rebuildPreviewSphere();
     this.hdriLoaded = true;
   }
@@ -806,7 +840,17 @@ export class Viewer {
     this.customEnvironment = null;
     this.scene.environment = this.defaultEnvironment;
     this.hdriLoaded = false;
+    this.hdriYaw = 0;
+    this.scene.environmentRotation.y = 0;
     this.clearPreviewSphere();
+  }
+
+  /** Alt + left drag on the viewport rotates the HDRI horizontally. */
+  rotateHDRI(deltaX: number): void {
+    if (!this.hdriLoaded) return;
+    this.hdriYaw += deltaX * 0.01;
+    this.scene.environmentRotation.y = this.hdriYaw;
+    if (this.previewMesh) this.previewMesh.rotation.y = this.hdriYaw;
   }
 
   /** Right-click on the HDRI icon: show/hide the preview sphere. */
@@ -831,6 +875,7 @@ export class Viewer {
       toneMapped: false,
     });
     this.previewMesh = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 32), material);
+    this.previewMesh.rotation.y = this.hdriYaw;
     this.previewScene.add(this.previewMesh);
   }
 
@@ -844,6 +889,7 @@ export class Viewer {
   setBackgroundColor(hex: string): void {
     const { color } = parseHexColor(hex);
     this.scene.background = color;
+    this.previewScene.background = color;
   }
 
   /** Color of the bounding box edges (Settings > Colors). */

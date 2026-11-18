@@ -79,8 +79,8 @@ export const ENGLISH: Record<string, string> = {
 
   "status.axes": "World axes; the axis the camera looks straight along is gray",
 
-  "status.hdriOff": "Default studio lighting. Click to enable HDRI, right-click for preview",
-  "status.hdriOn": "Custom HDRI active. Click to disable, right-click to toggle preview",
+  "status.hdriOff": "Default studio lighting. Click to enable HDRI, right-click for preview, Alt+drag to rotate",
+  "status.hdriOn": "Custom HDRI active. Click to disable, right-click to toggle preview, Alt+drag to rotate",
   "status.hdriFailed": "Could not load HDRI: {message}",
   "status.hdriPreviewNeedsHdri": "Load an HDRI first to show the preview",
 
