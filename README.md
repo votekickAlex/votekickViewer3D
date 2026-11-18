@@ -4,10 +4,7 @@ A lightweight 3D model viewer for Windows. Double-click a model file in
 Explorer and it opens instantly in a minimal viewer - the photo-viewer
 experience, for 3D models. Free and open source (MIT).
 
-<!-- Screenshot placeholder: drop a screenshot to docs/screenshot.png and
-uncomment below.
 ![!votekickViewer3D](docs/screenshot.png)
--->
 
 ## Supported formats
 
