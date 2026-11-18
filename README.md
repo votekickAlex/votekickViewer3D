@@ -144,6 +144,7 @@ npm run release   # builds installer + portable zip into release/
 ## TODO
 
 - Plugins support
+- More supported formats
 
 ## License
 
