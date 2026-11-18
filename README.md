@@ -65,6 +65,7 @@ The full list is always available in the app: `F1` or File > Help.
 | `H` | Toggle interface (hides everything but the 3D viewport and the world axes) |
 | Click version | Check GitHub for updates |
 | `Q` | Quit |
+| `C` | Close model |
 | `M` | Cycle display units (Auto / m / cm / mm) |
 | `Space` | Play / pause animation |
 | `A` | World axes on / off |
@@ -99,8 +100,7 @@ Animated models (GLB/glTF, FBX, DAE) play their first clip automatically
 on open. `Space` pauses or resumes it; `Page Up` / `Page Down` switch
 clips (also in the View menu, and the clip name in the status bar is
 clickable). The status bar icons and readouts are clickable too, and
-`A` toggles the world axes (also in View and Settings). Default colors:
-grid `#404040`, wireframe `#00FFFF`, bounding box `#0080FF`.
+`A` toggles the world axes (also in View and Settings).
 
 The status bar shows the model size with units (e.g. 2 x 2 x 2 m, each
 dimension number colored like its axis) on the left next to the file
@@ -139,6 +139,10 @@ Requires Node.js and Rust (see [Tauri prerequisites](https://v2.tauri.app/start/
 npm ci
 npm run release   # builds installer + portable zip into release/
 ```
+
+## TODO
+
+- Nothing at the moment. The backlog is empty.
 
 ## License
 

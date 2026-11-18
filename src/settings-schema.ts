@@ -43,6 +43,7 @@ export const DEFAULTS = {
     interface: "H",
     boundingBox: "B",
     quit: "Q",
+    close: "C",
     units: "M",
     playPause: "Space",
     axes: "A",

@@ -153,6 +153,7 @@ export const ENGLISH: Record<string, string> = {
   "hotkeys.interface": "Interface",
   "hotkeys.boundingBox": "Bounding box",
   "hotkeys.quit": "Quit",
+  "hotkeys.close": "Close model",
   "hotkeys.pressKey": "Press a key…",
   "hotkeys.title": "Click, then press the new key or mouse button (Esc cancels, Backspace clears)",
   "hotkeys.capture": "Press a key or mouse button - Esc to cancel, Backspace to clear",

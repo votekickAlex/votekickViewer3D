@@ -337,6 +337,7 @@ const HOTKEY_ACTIONS: { key: HotkeyKey; label: () => string; run: () => void }[]
   { key: "fullscreen", label: () => t("hotkeys.fullscreen"), run: () => void toggleFullscreen() },
   { key: "interface", label: () => t("hotkeys.interface"), run: toggleInterface },
   { key: "quit", label: () => t("hotkeys.quit"), run: () => void quitApp() },
+  { key: "close", label: () => t("hotkeys.close"), run: closeModel },
 ];
 
 /** Keys that never form a combination on their own. */
@@ -614,7 +615,7 @@ const menus: MenuDef[] = [
     icon: "file",
     items: [
       { label: () => t("menu.open"), hint: () => settings.hotkeys.open, icon: "folder-arrow-right", action: () => void openFileDialog() },
-      { label: () => t("menu.close"), icon: "close-small", action: closeModel },
+      { label: () => t("menu.close"), hint: () => settings.hotkeys.close, icon: "close-small", action: closeModel },
       { label: () => t("menu.help"), hint: "F1", icon: "question-circle", action: showHelp },
       { label: () => t("menu.quit"), hint: () => settings.hotkeys.quit, icon: "logout", action: () => void quitApp() },
     ],
