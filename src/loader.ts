@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
+import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader.js";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import { PLYLoader } from "three/examples/jsm/loaders/PLYLoader.js";
 import { ColladaLoader } from "three/examples/jsm/loaders/ColladaLoader.js";
@@ -59,6 +60,8 @@ function prepare(object: THREE.Object3D): void {
       const mat = m as THREE.MeshStandardMaterial;
       if (mat && (mat as any).isMaterial) {
         if (mat.type === "MeshStandardMaterial" || mat.type === "MeshPhongMaterial") {
+          // Colors from an .mtl file are intentional; don't overwrite them.
+          if ((mat as any).userData?.fromMtl) continue;
           if (!mat.map) {
             mat.color = new THREE.Color(0xb0b4bc);
             mat.metalness = 0.0;
@@ -126,7 +129,7 @@ export async function loadFromArrayBuffer(
             : defaultMeshMaterial();
         return wrap(new THREE.Mesh(geometry, material));
       }
-      return wrap(obj.parse(new TextDecoder().decode(buffer)));
+      return wrap(await parseObjWithMaterials(obj, manager, buffer));
     }
     case ".stl": {
       const geometry = stl.parse(buffer);
@@ -159,6 +162,51 @@ export async function loadFromArrayBuffer(
 
 function defaultMeshMaterial(): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ color: 0xb0b4bc, roughness: 0.55, metalness: 0.0 });
+}
+
+/** Parses a normal OBJ, picking up its sidecar .mtl (the `mtllib` line)
+ * and the textures referenced inside it. Materials are tagged so the
+ * generic prepare() step keeps their authored colors. */
+async function parseObjWithMaterials(
+  loader: OBJLoader,
+  manager: THREE.LoadingManager,
+  buffer: ArrayBuffer,
+): Promise<THREE.Object3D> {
+  const text = new TextDecoder().decode(buffer);
+  // MTLLoader parses synchronously from text; textures load via the
+  // manager's urlModifier (same folder as the model).
+  const mtlMatch = /^\s*mtllib\s+(.+)$/im.exec(text);
+  if (mtlMatch && resourceBase) {
+    const mtlName = mtlMatch[1].trim().split(/\s+/)[0];
+    try {
+      const res = await fetch(urlModifier(mtlName));
+      if (res.ok) {
+        const mtlText = await res.text();
+        const materials = new MTLLoader(manager).parse(mtlText, resourcePathForMtl());
+        materials.preload();
+        loader.setMaterials(materials);
+      }
+    } catch (err) {
+      console.warn("Could not load .mtl sidecar", err);
+    }
+  }
+  const object = loader.parse(text);
+  // OBJLoader clones the MTL materials for each group; tag the final
+  // meshes so prepare() keeps their authored colors and textures.
+  if (mtlMatch && resourceBase) {
+    object.traverse((child) => {
+      const mesh = child as THREE.Mesh;
+      if (!mesh.isMesh || !mesh.material) return;
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      for (const m of mats) m.userData.fromMtl = true;
+    });
+  }
+  return object;
+}
+
+/** Base path passed to MTLLoader for texture resolution. */
+function resourcePathForMtl(): string {
+  return resourceBase.replace(/\/$/, "") + "/";
 }
 
 // ---------- fast OBJ parser (very large files) ----------

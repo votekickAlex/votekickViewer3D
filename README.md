@@ -16,7 +16,7 @@ uncomment below.
 | glTF Binary | `.glb` | |
 | glTF | `.gltf` | |
 | Autodesk FBX | `.fbx` | textures are picked up from the model's folder |
-| Wavefront OBJ | `.obj` | uses the sidecar `.mtl` and texture files |
+| Wavefront OBJ | `.obj` | sidecar `.mtl` materials and textures are picked up |
 | Stereolithography | `.stl` | ASCII and binary |
 | Polygon File Format | `.ply` | ASCII and binary, vertex colors |
 | COLLADA | `.dae` | |
@@ -150,6 +150,7 @@ npm run release   # builds installer + portable zip into release/
 
 - Plugins support
 - More supported formats
+- Skeleton display for models with bones
 
 ## License
 
