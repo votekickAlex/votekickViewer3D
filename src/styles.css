@@ -187,6 +187,7 @@ button:focus-visible {
    * cluster is pinned to the edge by its own auto margin instead. */
   flex: 0 1 auto;
   min-width: 0;
+  font-size: 11px;
   color: var(--text-dim);
   white-space: nowrap;
   overflow: hidden;

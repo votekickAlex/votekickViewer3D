@@ -32,6 +32,7 @@ export const ENGLISH: Record<string, string> = {
   "menu.top": "Top",
   "menu.bottom": "Bottom",
   "menu.playPause": "Play / pause animation",
+  "menu.axes": "World axes",
   "menu.nextClip": "Next animation clip",
   "menu.prevClip": "Previous animation clip",
   "menu.about": "About",
@@ -86,6 +87,7 @@ export const ENGLISH: Record<string, string> = {
     "Model size and grid step readouts. Auto shows plain numbers, scaled by magnitude assuming the file unit is a meter (the glTF standard); for unitless formats authored in another unit pick it here. Hotkey M cycles the modes.",
 
   "settings.axesOpacity": "Axes opacity",
+  "settings.showAxes": "Show world axes",
 
   "units.auto": "Auto (by scale)",
 
@@ -126,6 +128,7 @@ export const ENGLISH: Record<string, string> = {
 
   "hotkeys.units": "Cycle display units",
   "hotkeys.playPause": "Play / pause animation",
+  "hotkeys.axes": "World axes on / off",
   "hotkeys.interface": "Interface",
   "hotkeys.boundingBox": "Bounding box",
   "hotkeys.quit": "Quit",

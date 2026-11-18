@@ -66,6 +66,7 @@ The full list is always available in the app: `F1` or File > Help.
 | `Q` | Quit |
 | `M` | Cycle display units (Auto / m / cm / mm) |
 | `Space` | Play / pause animation |
+| `A` | World axes on / off |
 | `Page Up` / `Page Down` | Previous / next animation clip |
 | `F1` | Help (all hotkeys) |
 | `Left` / `Right` | Previous / next model in the current model's folder |
@@ -95,8 +96,9 @@ The same commands are in the View menu.
 Animated models (GLB/glTF, FBX, DAE) play their first clip automatically
 on open. `Space` pauses or resumes it; `Page Up` / `Page Down` switch
 clips (also in the View menu, and the clip name in the status bar is
-clickable). The Grid, Wireframe, Bounding box, display unit and
-projection status readouts are clickable too.
+clickable). The status bar icons and readouts are clickable too, and
+`A` toggles the world axes (also in View and Settings). Default colors:
+grid `#404040`, wireframe `#00FFFF`, bounding box `#0080FF`.
 
 The status bar shows the model size with units (e.g. 2 x 2 x 2 m, each
 dimension number colored like its axis) on the left next to the file

@@ -166,6 +166,7 @@ await loadSettings();
 viewer.setGridVisible(settings.view.grid);
 viewer.setWireframe(settings.view.wireframe);
 viewer.setBBoxVisible(settings.view.bbox);
+viewer.setAxesVisible(settings.view.axes);
 viewer.setGridColor(settings.view.gridColor);
 viewer.setWireframeColor(settings.view.wireframeColor);
 viewer.setBBoxColor(settings.view.bboxColor);
@@ -200,6 +201,16 @@ function toggleBBox(): void {
   refreshStatusIcons();
 }
 
+/** View > World axes (hotkey A): toggle the XYZ lines in the viewport. */
+function toggleAxes(): void {
+  const on = !settings.view.axes;
+  setSetting("view", "axes", on);
+  viewer.setAxesVisible(on && !uiHidden);
+  refreshStatusIcons();
+  const checkbox = document.getElementById("set-axes-visible") as HTMLInputElement | null;
+  if (checkbox) checkbox.checked = on;
+}
+
 /** Num 5 / View > Orthographic: projection toggle with a status badge. */
 function toggleOrtho(): void {
   viewer.setOrthographic(!viewer.orthographic);
@@ -228,7 +239,8 @@ function refreshStatusIcons(): void {
     ["st-grid", () => viewer.gridVisible, () => t("menu.grid"), true],
     ["st-wireframe", () => viewer.wireframeOn, () => t("menu.wireframe"), true],
     ["st-bbox", () => viewer.bboxVisible, () => t("menu.boundingBox"), true],
-    ["st-fullscreen", () => fullscreenOn, () => t("menu.fullscreen"), false],
+    ["st-fullscreen", () => fullscreenOn, () => t("menu.fullscreen"), true],
+    ["st-axes-toggle", () => settings.view.axes && !uiHidden, () => t("menu.axes"), true],
   ];
   for (const [id, on, title, clickable] of states) {
     const el = document.getElementById(id);
@@ -285,7 +297,7 @@ function toggleInterface(): void {
   uiHidden = !uiHidden;
   document.body.classList.toggle("ui-hidden", uiHidden);
   // The world axes gizmo counts as interface too: hidden with H.
-  viewer.setAxesVisible(!uiHidden);
+  viewer.setAxesVisible(settings.view.axes && !uiHidden);
 }
 
 // ---------- hotkeys (editable in the Settings dialog) ----------
@@ -301,6 +313,7 @@ const HOTKEY_ACTIONS: { key: HotkeyKey; label: () => string; run: () => void }[]
   { key: "boundingBox", label: () => t("hotkeys.boundingBox"), run: toggleBBox },
   { key: "units", label: () => t("hotkeys.units"), run: cycleUnits },
   { key: "playPause", label: () => t("hotkeys.playPause"), run: () => viewer.toggleAnimationPause() },
+  { key: "axes", label: () => t("hotkeys.axes"), run: toggleAxes },
   { key: "reset", label: () => t("hotkeys.resetView"), run: () => viewer.frameModel(false) },
   { key: "fullscreen", label: () => t("hotkeys.fullscreen"), run: () => void toggleFullscreen() },
   { key: "interface", label: () => t("hotkeys.interface"), run: toggleInterface },
@@ -452,6 +465,7 @@ function showSettings(): void {
   alwaysOnTop.checked = settings.window.alwaysOnTop;
   const rememberFullscreen = document.getElementById("set-remember-fullscreen") as HTMLInputElement;
   rememberFullscreen.checked = settings.window.rememberFullscreen;
+  (document.getElementById("set-axes-visible") as HTMLInputElement).checked = settings.view.axes;
   const unitsSelect = document.getElementById("set-units") as HTMLSelectElement;
   unitsSelect.value = settings.general.units;
   const axesOpacity = document.getElementById("set-axes-opacity") as HTMLInputElement;
@@ -599,6 +613,7 @@ const menus: MenuDef[] = [
         { label: () => t("menu.grid"), hint: () => settings.hotkeys.grid, checked: () => viewer.gridVisible, icon: "grid-3", action: toggleGrid },
         { label: () => t("menu.wireframe"), hint: () => settings.hotkeys.wireframe, checked: () => viewer.wireframeOn, icon: "hash", action: toggleWireframe },
         { label: () => t("menu.boundingBox"), hint: () => settings.hotkeys.boundingBox, checked: () => viewer.bboxVisible, icon: "square", action: toggleBBox },
+        { label: () => t("menu.axes"), hint: () => settings.hotkeys.axes, checked: () => settings.view.axes && !uiHidden, icon: "axes", action: toggleAxes },
         { label: () => t("menu.fullscreen"), hint: () => settings.hotkeys.fullscreen, checked: () => fullscreenOn, icon: "arrows-diagonal", action: () => void toggleFullscreen() },
         { label: () => t("menu.interface"), hint: () => settings.hotkeys.interface, checked: () => !uiHidden, icon: "monitor-screenshot", action: toggleInterface },
       ];
@@ -649,6 +664,8 @@ animEl.addEventListener("click", () => viewer.nextAnimationClip());
 document.getElementById("st-grid")!.addEventListener("click", toggleGrid);
 document.getElementById("st-wireframe")!.addEventListener("click", toggleWireframe);
 document.getElementById("st-bbox")!.addEventListener("click", toggleBBox);
+document.getElementById("st-fullscreen")!.addEventListener("click", () => void toggleFullscreen());
+document.getElementById("st-axes-toggle")!.addEventListener("click", toggleAxes);
 unitsEl.addEventListener("click", cycleUnits);
 document.getElementById("st-proj")!.addEventListener("click", toggleOrtho);
 
@@ -689,6 +706,13 @@ document.getElementById("set-always-on-top")!.addEventListener("change", async (
       console.warn("Could not toggle always on top", err);
     }
   }
+});
+
+document.getElementById("set-axes-visible")!.addEventListener("change", (e) => {
+  const on = (e.target as HTMLInputElement).checked;
+  setSetting("view", "axes", on);
+  viewer.setAxesVisible(on && !uiHidden);
+  refreshStatusIcons();
 });
 
 document.getElementById("set-remember-fullscreen")!.addEventListener("change", (e) => {

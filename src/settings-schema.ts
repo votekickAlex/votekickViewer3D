@@ -7,9 +7,12 @@ export const DEFAULTS = {
     grid: true,
     wireframe: false,
     bbox: false,
-    gridColor: "#b03a3a",
-    wireframeColor: "#ffffff",
-    bboxColor: "#4f9cf9",
+    // World axes lines in the viewport; toggle from the status bar,
+    // the View menu, Settings or the A hotkey.
+    axes: true,
+    gridColor: "#404040",
+    wireframeColor: "#00FFFF",
+    bboxColor: "#0080FF",
     // Axis line opacity in percent (Settings > Colors slider).
     axesOpacity: 100,
   },
@@ -40,5 +43,6 @@ export const DEFAULTS = {
     quit: "Q",
     units: "M",
     playPause: "Space",
+    axes: "A",
   },
 };
