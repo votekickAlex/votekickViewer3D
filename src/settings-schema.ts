@@ -49,5 +49,6 @@ export const DEFAULTS = {
     units: "M",
     playPause: "Space",
     axes: "A",
+    skeleton: "S",
   },
 };

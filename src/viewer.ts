@@ -1207,14 +1207,9 @@ export class Viewer {
   private rebuildSkeleton(): void {
     this.skeletonHelper?.removeFromParent();
     this.skeletonHelper = null;
-    let source: THREE.Object3D | null = null;
-    this.modelRoot.traverse((obj) => {
-      if (source) return;
-      const skinned = obj as THREE.SkinnedMesh;
-      if (skinned.isSkinnedMesh && skinned.skeleton?.bones.length) source = obj;
-    });
-    if (!source) return;
-    const helper = new THREE.SkeletonHelper(source);
+    // glTF keeps bones as siblings of the SkinnedMesh, not its children:
+    // build the helper from modelRoot so it sees the whole bone hierarchy.
+    const helper = new THREE.SkeletonHelper(this.modelRoot);
     const material = helper.material as THREE.LineBasicMaterial;
     material.depthTest = false;
     material.toneMapped = false;

@@ -161,6 +161,7 @@ export const ENGLISH: Record<string, string> = {
   "hotkeys.units": "Cycle display units",
   "hotkeys.playPause": "Play / pause animation",
   "hotkeys.axes": "World axes on / off",
+  "hotkeys.skeleton": "Skeleton on / off",
   "hotkeys.interface": "Interface",
   "hotkeys.boundingBox": "Bounding box",
   "hotkeys.quit": "Quit",

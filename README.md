@@ -69,6 +69,7 @@ The full list is always available in the app: `F1` or File > Help.
 | `M` | Cycle display units (Auto / m / cm / mm) |
 | `Space` | Play / pause animation |
 | `A` | World axes on / off |
+| `S` | Skeleton on / off |
 | `Page Up` / `Page Down` | Previous / next animation clip |
 | `F1` | Help (all hotkeys) |
 | `Left` / `Right` | Previous / next model in the current model's folder |

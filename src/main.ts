@@ -397,6 +397,7 @@ const HOTKEY_ACTIONS: { key: HotkeyKey; label: () => string; run: () => void }[]
   { key: "units", label: () => t("hotkeys.units"), run: cycleUnits },
   { key: "playPause", label: () => t("hotkeys.playPause"), run: () => viewer.toggleAnimationPause() },
   { key: "axes", label: () => t("hotkeys.axes"), run: toggleAxes },
+  { key: "skeleton", label: () => t("hotkeys.skeleton"), run: toggleSkeleton },
   { key: "reset", label: () => t("hotkeys.resetView"), run: () => viewer.frameModel(false) },
   { key: "fullscreen", label: () => t("hotkeys.fullscreen"), run: () => void toggleFullscreen() },
   { key: "interface", label: () => t("hotkeys.interface"), run: toggleInterface },
@@ -703,7 +704,7 @@ const menus: MenuDef[] = [
         { label: () => t("menu.wireframe"), hint: () => settings.hotkeys.wireframe, checked: () => viewer.wireframeOn, icon: "hash", action: toggleWireframe },
         { label: () => t("menu.boundingBox"), hint: () => settings.hotkeys.boundingBox, checked: () => viewer.bboxVisible, icon: "square", action: toggleBBox },
         { label: () => t("menu.axes"), hint: () => settings.hotkeys.axes, checked: () => settings.view.axes, icon: "axes", action: toggleAxes },
-        ...(viewer.skeletonAvailable ? [{ label: () => t("menu.skeleton"), checked: () => viewer.skeletonVisible, icon: "skeleton", action: toggleSkeleton }] : []),
+        ...(viewer.skeletonAvailable ? [{ label: () => t("menu.skeleton"), hint: () => settings.hotkeys.skeleton, checked: () => viewer.skeletonVisible, icon: "skeleton", action: toggleSkeleton }] : []),
         { label: () => t("menu.fullscreen"), hint: () => settings.hotkeys.fullscreen, checked: () => fullscreenOn, icon: "arrows-diagonal", action: () => void toggleFullscreen() },
         { label: () => t("menu.interface"), hint: () => settings.hotkeys.interface, checked: () => !uiHidden, icon: "monitor-screenshot", action: toggleInterface },
       ];
