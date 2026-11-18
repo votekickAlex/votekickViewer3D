@@ -119,7 +119,8 @@ modes).
   Bounding box, World axes, Fullscreen, Interface and, for animated models,
   Play / pause and previous / next clip; toggles show their state with a
   checkmark.
-- **Tools**: Settings, Plugins and Update (checks for a newer version).
+- **Tools**: Settings, Plugins, Update (checks for a newer version),
+  Load HDRI and Reset HDRI.
 - **Settings** has three categories: General (launch maximized, always on
   top, world axes, display units, language), Colors (grid, wireframe,
   bounding box, axes opacity, background) and Hotkeys. Default colors:
@@ -127,6 +128,8 @@ modes).
   `#0080FF`, background `#1c1f24`.
 - Clicking the version in the status bar or in About checks GitHub for
   updates and offers automatic installation or a manual download.
+- An `.hdr` file can be loaded from Tools > Load HDRI as the studio
+  environment; the status bar HDRI icon turns on while it is active.
 - **Languages**: plain JSON files. On first launch
   `english.json` is created in `%APPDATA%\votekickViewer3D\lang`; copy it,
   translate, rename to your language, put it back and it appears in the

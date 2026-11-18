@@ -1,5 +1,6 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import * as THREE from "three";
+import { HDRLoader } from "three/examples/jsm/loaders/HDRLoader.js";
 import { Viewer, AXIS_COLOR_HEX } from "./viewer";
 import { isSupportedFile, loadFromArrayBuffer, setResourceBase, SUPPORTED_EXTENSIONS } from "./loader";
 import { loadSettings, saveSettingsSoon, setSetting, settings, type AppSettings } from "./settings";
@@ -17,6 +18,7 @@ const viewport = document.getElementById("viewport")!;
 const statusEl = document.getElementById("status")!;
 const dropHint = document.getElementById("drop-hint")!;
 const fileInput = document.getElementById("file-input") as HTMLInputElement;
+const hdriInput = document.getElementById("hdri-input") as HTMLInputElement;
 // The OS dialog must only offer the formats the viewer can actually load.
 fileInput.accept = SUPPORTED_EXTENSIONS.join(",");
 const settingsDialog = document.getElementById("settings-dialog") as HTMLDialogElement;
@@ -173,6 +175,10 @@ viewer.setWireframeColor(settings.view.wireframeColor);
 viewer.setBBoxColor(settings.view.bboxColor);
 viewer.setBackgroundColor(settings.view.backgroundColor);
 viewer.setAxesOpacity(settings.view.axesOpacity);
+if (settings.general.hdriPath) {
+  // Deferred: the renderer and PMREM are ready; load without blocking UI.
+  void loadHDRIPath(settings.general.hdriPath);
+}
 await setLanguage(settings.general.language);
 
 // Inline the animated line-md icons into every element carrying a
@@ -219,6 +225,54 @@ function toggleOrtho(): void {
   refreshStatusIcons();
 }
 
+/** Parses an .hdr file and uses it as the studio environment. */
+function applyHDRI(buffer: ArrayBuffer): void {
+  const texture = new HDRLoader().createDataTexture(buffer);
+  viewer.setHDRI(texture);
+  refreshStatusIcons();
+}
+
+/** Load an HDRI by its absolute path (native dialog / persisted setting). */
+async function loadHDRIPath(path: string): Promise<void> {
+  try {
+    const res = await fetch(convertFileSrc(path));
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    applyHDRI(await res.arrayBuffer());
+    setSetting("general", "hdriPath", path);
+  } catch (err) {
+    console.warn("Could not load HDRI", err);
+    setStatus(t("status.hdriFailed", { message: err instanceof Error ? err.message : String(err) }), true);
+  }
+}
+
+/** Tools > Load HDRI: native dialog on Windows, HTML input in the browser. */
+async function openHDRIDialog(): Promise<void> {
+  if ("__TAURI_INTERNALS__" in window) {
+    try {
+      const { open } = await import("@tauri-apps/plugin-dialog");
+      const picked = await open({ multiple: false, filters: [{ name: "HDR image", extensions: ["hdr"] }] });
+      if (typeof picked === "string") await loadHDRIPath(picked);
+      return;
+    } catch (err) {
+      console.warn("Native HDRI dialog failed, falling back", err);
+    }
+  }
+  hdriInput.click();
+}
+
+hdriInput.addEventListener("change", () => {
+  const file = hdriInput.files?.[0];
+  if (file) void file.arrayBuffer().then(applyHDRI);
+  hdriInput.value = "";
+});
+
+/** Tools > Reset HDRI or click on the status icon: default lighting. */
+function resetHDRI(): void {
+  viewer.resetHDRI();
+  setSetting("general", "hdriPath", "");
+  refreshStatusIcons();
+}
+
 /** File > Open (hotkey O). In Tauri the native dialog returns a real
  * file path, so arrow-key folder navigation works for picked files too;
  * the plain HTML input stays as a fallback for the dev browser. */
@@ -259,12 +313,13 @@ function refreshStatusIcons(): void {
     ["st-bbox", () => viewer.bboxVisible, () => t("menu.boundingBox"), true],
     ["st-fullscreen", () => fullscreenOn, () => t("menu.fullscreen"), true],
     ["st-axes-toggle", () => settings.view.axes, () => t("menu.axes"), true],
+    ["st-hdri", () => viewer.hdriLoaded, () => t("status.hdriOff"), true],
   ];
   for (const [id, on, title, clickable] of states) {
     const el = document.getElementById(id);
     if (!el) continue;
     el.classList.toggle("on", on());
-    el.title = clickable ? `${title()}, ${t("status.clickToggle")}` : title();
+    el.title = id === "st-hdri" && on() ? t("status.hdriOn") : (clickable ? `${title()}, ${t("status.clickToggle")}` : title());
   }
   const proj = document.getElementById("st-proj");
   if (proj) {
@@ -666,6 +721,8 @@ const menus: MenuDef[] = [
       { label: () => t("menu.settings"), icon: "cog-loop", action: showSettings },
       { label: () => t("menu.plugins"), icon: "document-code", action: () => pluginsDialog.showModal() },
       { label: () => t("menu.update"), icon: "downloading-loop", action: () => void checkForUpdates() },
+      { label: () => t("menu.hdri"), icon: "image", action: () => void openHDRIDialog() },
+      { label: () => t("menu.resetHdri"), action: resetHDRI },
     ],
   },
   {
@@ -692,6 +749,9 @@ document.getElementById("st-wireframe")!.addEventListener("click", toggleWirefra
 document.getElementById("st-bbox")!.addEventListener("click", toggleBBox);
 document.getElementById("st-fullscreen")!.addEventListener("click", () => void toggleFullscreen());
 document.getElementById("st-axes-toggle")!.addEventListener("click", toggleAxes);
+document.getElementById("st-hdri")!.addEventListener("click", () => {
+  if (viewer.hdriLoaded) resetHDRI(); else void openHDRIDialog();
+});
 unitsEl.addEventListener("click", cycleUnits);
 document.getElementById("st-proj")!.addEventListener("click", toggleOrtho);
 

@@ -33,6 +33,8 @@ export const DEFAULTS = {
     // world unit is a meter; fixed modes for files authored in other
     // units (OBJ/STL/FBX carry no reliable unit).
     units: "auto",
+    // Optional absolute path to an .hdr file used as the scene environment.
+    hdriPath: "",
   },
   hotkeys: {
     open: "O",

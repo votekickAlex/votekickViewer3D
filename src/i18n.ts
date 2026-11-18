@@ -23,6 +23,8 @@ export const ENGLISH: Record<string, string> = {
   "menu.settings": "Settings…",
   "menu.plugins": "Plugins…",
   "menu.update": "Update",
+  "menu.hdri": "Load HDRI…",
+  "menu.resetHdri": "Reset HDRI to default",
   "menu.fullscreen": "Full screen",
   "menu.interface": "Interface",
   "menu.boundingBox": "Bounding box",
@@ -76,6 +78,10 @@ export const ENGLISH: Record<string, string> = {
     "Bounding box size of the model, each dimension colored like its axis; Auto mode shows plain numbers scaled by magnitude (the world unit is assumed to be a meter) unless another unit is picked in Settings",
 
   "status.axes": "World axes; the axis the camera looks straight along is gray",
+
+  "status.hdriOff": "Default studio lighting. Click to load an HDRI",
+  "status.hdriOn": "Custom HDRI environment. Click to reset to default",
+  "status.hdriFailed": "Could not load HDRI: {message}",
 
   "status.animPlaying": "playing",
   "status.animPaused": "paused",

@@ -83,6 +83,12 @@ export class Viewer {
   /** Set by main.ts to refresh the animation status readout. */
   onAnimationChange: (() => void) | null = null;
   private modelRoot: THREE.Group;
+  /** PMREM generator and the built-in studio environment; an HDRI loaded
+   * from a file replaces it (and is disposed when reset). */
+  private readonly pmrem!: THREE.PMREMGenerator;
+  private readonly defaultEnvironment!: THREE.Texture;
+  private customEnvironment: THREE.Texture | null = null;
+  hdriLoaded = false;
   private wireframe = false;
   /** Shared material for the wireframe overlay: one flat, user-colored
    * look drawn on top of the intact solid model. */
@@ -118,7 +124,10 @@ export class Viewer {
 
     // Soft image-based lighting so PBR materials look right with no setup.
     const pmrem = new THREE.PMREMGenerator(this.renderer);
-    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    this.pmrem = pmrem;
+    this.defaultEnvironment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    this.scene.environment = this.defaultEnvironment;
+    this.hdriLoaded = false;
 
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.01, 4000);
     this.camera.position.set(3, 2, 4);
@@ -748,6 +757,26 @@ export class Viewer {
     this.grid = this.createGrid(hex, this.gridCell);
     this.grid.visible = visible;
     this.scene.add(this.grid);
+  }
+
+  /** Uses an equirectangular HDR texture as the scene environment. The
+   * PMREM-filtered result replaces the built-in studio lighting. */
+  setHDRI(texture: THREE.Texture): void {
+    texture.mapping = THREE.EquirectangularReflectionMapping;
+    const filtered = this.pmrem.fromEquirectangular(texture).texture;
+    this.scene.environment = filtered;
+    this.customEnvironment?.dispose();
+    texture.dispose();
+    this.customEnvironment = filtered;
+    this.hdriLoaded = true;
+  }
+
+  /** Back to the default studio environment. */
+  resetHDRI(): void {
+    this.customEnvironment?.dispose();
+    this.customEnvironment = null;
+    this.scene.environment = this.defaultEnvironment;
+    this.hdriLoaded = false;
   }
 
   /** Color of the flat wireframe overlay (Settings > Colors). */
